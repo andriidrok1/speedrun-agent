@@ -59,6 +59,9 @@ const stem = (w: string) => w.slice(0, Math.max(4, w.length - 3));
  * Should these two even talk? Checks the creator's public and private refusals against how the brand
  * describes itself. A mismatch means no conversation starts; both sides see the reason instead.
  */
+/** Words that describe every brand and must not trigger a refusal on their own ("any brand with a public labor scandal"). */
+const FIT_STOPWORDS = new Set(['any', 'with', 'that', 'this', 'which', 'brand', 'brands', 'company', 'companies', 'public', 'from', 'their', 'have', 'about', 'other']);
+
 export function fitCheck(brand: BrandProfile, creator: CreatorProfile): { fit: boolean; reasons: string[] } {
   const about = [
     brand.public.name, brand.public.category, brand.public.site, brand.public.campaign.name,
@@ -67,7 +70,7 @@ export function fitCheck(brand: BrandProfile, creator: CreatorProfile): { fit: b
   const refusals = [...(creator.public.refuses ?? []), ...creator.private.stop_brands].map((r) => r.toLowerCase().trim()).filter(Boolean);
   const reasons: string[] = [];
   for (const r of new Set(refusals)) {
-    const words = r.split(/[^a-z0-9]+/).filter((w) => w.length >= 4);
+    const words = r.split(/[^a-z0-9]+/).filter((w) => w.length >= 4 && !FIT_STOPWORDS.has(w));
     const terms = [r, ...words.map(stem), ...words.flatMap((w) => SYNONYMS[w] ?? [])];
     if (terms.some((t) => t.length >= 3 && about.includes(t))) {
       reasons.push(`${creator.public.handle} does not work with ${r}, and ${brand.public.name} is ${brand.public.category}.`);
