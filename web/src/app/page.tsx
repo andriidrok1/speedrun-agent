@@ -18,8 +18,8 @@ export default function Home() {
               Set a budget and rules once. Your agent finds creators, prices them, and negotiates.
             </p>
           </div>
-          <Button href="/brand/creators" size="lg" className="mt-auto">
-            Find creators
+          <Button href="/brand/setup" size="lg" className="mt-auto">
+            Set up my campaign
           </Button>
         </div>
         <div className="flex flex-col gap-6 rounded-xl bg-primary p-6 shadow-xs ring-1 ring-secondary ring-inset">
@@ -30,7 +30,7 @@ export default function Home() {
             </p>
           </div>
           <Button href="/creator" size="lg" color="secondary" className="mt-auto">
-            See my worth
+            Set my deal rules
           </Button>
         </div>
       </div>

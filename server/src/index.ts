@@ -4,7 +4,7 @@ import type { Context } from 'hono';
 import { DealDO } from './deal.do';
 import { CampaignDO, errMessage, errStatus } from './campaign.do';
 import { BRANDS } from './profiles.bundle';
-import type { Creator } from './types';
+import type { BrandProfile, Creator, CreatorProfile } from './types';
 import Stripe from 'stripe';
 import { makeStripe } from './stripe';
 import { mountMcp } from './mcp';
@@ -54,6 +54,33 @@ const str = (b: Body, key: string): string => {
   if (typeof v !== 'string' || !v.trim()) throw new Error(`[400] ${key} is required (string)`);
   return v.trim();
 };
+const slugify = (s: string): string => s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'brand';
+const isObj = (v: unknown): v is Record<string, unknown> => !!v && typeof v === 'object' && !Array.isArray(v);
+const num = (v: unknown): boolean => typeof v === 'number' && Number.isFinite(v) && v >= 0;
+
+/** Shape check for an onboarded brand profile (context/SCHEMA.md). The engine reads these fields. */
+function brandFromBody(v: unknown): BrandProfile {
+  const p = v as BrandProfile;
+  const ok = isObj(v) && isObj(p.public) && isObj(p.private) && typeof p.public.name === 'string' && p.public.name.trim()
+    && isObj(p.public.campaign) && Array.isArray(p.public.campaign.wanted_deliverables) && p.public.campaign.wanted_deliverables.length > 0
+    && isObj(p.public.barter_menu) && Array.isArray(p.public.barter_menu.product)
+    && num(p.private.budget_total_usd) && num(p.private.budget_per_creator_max_usd)
+    && isObj(p.private.valuation) && isObj(p.private.concession_rules);
+  if (!ok) throw new Error('[400] brand must be a brand profile (public.name, public.campaign.wanted_deliverables, public.barter_menu, private budgets, valuation, concession_rules)');
+  return p;
+}
+
+/** Shape check for an onboarded creator profile (context/SCHEMA.md). */
+function creatorProfileFromBody(v: unknown): CreatorProfile {
+  const p = v as CreatorProfile;
+  const ok = isObj(v) && isObj(p.public) && isObj(p.private) && typeof p.public.name === 'string' && typeof p.public.handle === 'string'
+    && isObj(p.public.rate_card) && isObj(p.public.barter_openness) && isObj(p.public.availability)
+    && isObj(p.private.floor_usd) && num(p.private.floor_usd.reel) && num(p.private.floor_usd.story)
+    && isObj(p.private.valuation) && isObj(p.private.premiums) && isObj(p.private.concession_rules);
+  if (!ok) throw new Error('[400] creatorProfile must be a creator profile (public rate_card, barter_openness, availability; private floor_usd, valuation, premiums, concession_rules)');
+  return p;
+}
+
 const campaignStub = (c: C, id: string) => c.env.CAMPAIGN.get(c.env.CAMPAIGN.idFromName(id));
 const dealStub = (c: C, id: string) => c.env.DEAL.get(c.env.DEAL.idFromName(id));
 
@@ -68,8 +95,10 @@ app.notFound((c) => c.json({ error: `no route ${c.req.method} ${c.req.path}` }, 
 
 app.post('/campaigns', async (c) => {
   const b = await body(c);
-  const brandSlug = str(b, 'brandSlug');
-  const brand = BRANDS[brandSlug];
+  // Either a bundled brand by slug, or a full profile from brand onboarding.
+  const custom = b.brand !== undefined ? brandFromBody(b.brand) : undefined;
+  const brandSlug = custom ? `custom-${slugify(custom.public.name)}` : str(b, 'brandSlug');
+  const brand = custom ?? BRANDS[brandSlug];
   if (!brand) return c.json({ error: `unknown brand ${brandSlug}` }, 404);
   let budgetTotal = brand.private.budget_total_usd;
   if (b.budgetUsd !== undefined) {
@@ -77,7 +106,7 @@ app.post('/campaigns', async (c) => {
     budgetTotal = b.budgetUsd;
   }
   const campaignId = crypto.randomUUID();
-  const view = await campaignStub(c, campaignId).init({ campaignId, brandSlug, budgetTotal });
+  const view = await campaignStub(c, campaignId).init({ campaignId, brandSlug, budgetTotal, brand: custom });
   return c.json({ campaignId: view.campaignId, brandSlug: view.brandSlug, budgetTotal: view.budgetTotal, budgetLeft: view.budgetLeft }, 201);
 });
 
@@ -104,9 +133,10 @@ app.post('/deals', async (c) => {
       fairPrice: cr.fairPrice,
     };
   }
+  const creatorProfile = b.creatorProfile !== undefined ? creatorProfileFromBody(b.creatorProfile) : undefined;
   const campaign = await campaignStub(c, campaignId).get();
   const dealId = crypto.randomUUID();
-  const deal = await dealStub(c, dealId).create({ dealId, campaignId, brandSlug: campaign.brandSlug, creatorSlug, creator });
+  const deal = await dealStub(c, dealId).create({ dealId, campaignId, brandSlug: campaign.brandSlug, creatorSlug, creator, creatorProfile });
   return c.json(deal, 201);
 });
 

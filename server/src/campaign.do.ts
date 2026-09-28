@@ -2,7 +2,7 @@
 // budgetLeft = budgetTotal - sum(reserved + committed). Released rows return money to the pool.
 import { DurableObject } from 'cloudflare:workers';
 import type { Env } from './index';
-import type { DealStatus } from './types';
+import type { BrandProfile, DealStatus } from './types';
 
 export type LedgerState = 'reserved' | 'committed' | 'released';
 export type DealSummary = { dealId: string; creatorSlug: string; status: DealStatus; price: number };
@@ -51,7 +51,14 @@ export class CampaignDO extends DurableObject<Env> {
     )`);
   }
 
-  init(args: { campaignId: string; brandSlug: string; budgetTotal: number }): CampaignView {
+  init(args: { campaignId: string; brandSlug: string; budgetTotal: number; brand?: BrandProfile }): CampaignView {
+    this.sql.exec(`CREATE TABLE IF NOT EXISTS brand (id INTEGER PRIMARY KEY CHECK (id = 1), json TEXT NOT NULL)`);
+    if (args.brand) {
+      this.sql.exec(
+        `INSERT INTO brand (id, json) VALUES (1, ?) ON CONFLICT(id) DO UPDATE SET json = excluded.json`,
+        JSON.stringify(args.brand),
+      );
+    }
     this.sql.exec(
       `INSERT INTO meta (id, campaignId, brandSlug, budgetTotal) VALUES (1, ?, ?, ?)
        ON CONFLICT(id) DO UPDATE SET campaignId = excluded.campaignId, brandSlug = excluded.brandSlug, budgetTotal = excluded.budgetTotal`,
@@ -70,6 +77,13 @@ export class CampaignDO extends DurableObject<Env> {
       budgetLeft: this.budgetLeft(meta.budgetTotal),
       deals: deals.map((d) => ({ dealId: d.dealId, creatorSlug: d.creatorSlug, status: d.status, price: d.amount })),
     };
+  }
+
+  /** The brand profile from onboarding, or null when the campaign uses a bundled brand. */
+  brandProfile(): BrandProfile | null {
+    this.sql.exec(`CREATE TABLE IF NOT EXISTS brand (id INTEGER PRIMARY KEY CHECK (id = 1), json TEXT NOT NULL)`);
+    const row = this.sql.exec<{ json: string }>('SELECT json FROM brand WHERE id = 1').toArray()[0];
+    return row ? (JSON.parse(row.json) as BrandProfile) : null;
   }
 
   /** Hold `amount` for a deal. Returns ok=false (no throw) when the budget cannot cover it. */

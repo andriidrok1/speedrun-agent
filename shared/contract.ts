@@ -25,14 +25,15 @@ export interface Offer {
   message: string;
 }
 
+// Statuses the deals server emits (docs/api-integration.md). `held` = brand paid, money held;
+// `paid_out` = post verified, creator paid.
 export type DealStatus =
   | "negotiating"
   | "agreed"
-  | "paid"
   | "held"
-  | "live"
   | "paid_out"
-  | "refunded";
+  | "refunded"
+  | "walked_away";
 
 export interface Deal {
   dealId: string;

@@ -8,5 +8,5 @@ export default async function DealPage({ params }: { params: Promise<{ id: strin
   const { id } = await params;
   const creator = getCreators().creators.find((c) => c.handle.replace("@", "") === decodeURIComponent(id));
   if (!creator) notFound();
-  return <DealView creator={creator} dealId={`deal-${id}`} />;
+  return <DealView creator={creator} />;
 }

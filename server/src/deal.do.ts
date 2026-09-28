@@ -45,6 +45,8 @@ export type CreateDealArgs = {
   creatorSlug: string;
   /** Raha's scraper output. Used only when creatorSlug has no bundled profile. */
   creator?: Creator;
+  /** Full profile from creator onboarding. Wins over the bundled and scraped profiles. */
+  creatorProfile?: CreatorProfile;
 };
 
 /** Stored deal: the shared Deal contract plus fields only this side needs. */
@@ -88,14 +90,14 @@ export class DealDO extends DurableObject<Env> {
 
   async create(args: CreateDealArgs): Promise<DealRecord> {
     if (this.load()) fail(409, `deal ${args.dealId} already exists`);
-    const baseBrand = BRANDS[args.brandSlug];
+    const campaign = this.campaign(args.campaignId);
+    const baseBrand = BRANDS[args.brandSlug] ?? (await campaign.brandProfile());
     if (!baseBrand) fail(404, `deal ${args.dealId}: unknown brand ${args.brandSlug}`);
-    const creator = CREATORS[args.creatorSlug] ?? (args.creator ? profileFromScraped(args.creatorSlug, args.creator) : null);
+    const creator = args.creatorProfile ?? CREATORS[args.creatorSlug] ?? (args.creator ? profileFromScraped(args.creatorSlug, args.creator) : null);
     if (!creator) fail(404, `deal ${args.dealId}: unknown creator ${args.creatorSlug} (pass a Creator object to negotiate with a scraped profile)`);
     // Cap the brand at 1.3x this creator's own rate card, so offers follow real reach.
     const brand = brandForCreator(baseBrand, creator);
 
-    const campaign = this.campaign(args.campaignId);
     const snapshot = await campaign.get(); // 404 if the campaign was never created
 
     const now = new Date();
@@ -355,6 +357,8 @@ export class DealDO extends DurableObject<Env> {
 
   private insertTurn(t: Turn): void {
     const { ts, value_for_brand_usd, value_for_creator_usd, ...offer } = t;
+    // House style: no em/en dashes in anything the UI shows, even if the model writes them.
+    offer.message = offer.message.replace(/\s*[\u2014\u2013]\s*/g, ', ');
     this.sql.exec(
       `INSERT INTO messages (round, from_side, ts, offer_json, message, value_brand, value_creator, status)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,

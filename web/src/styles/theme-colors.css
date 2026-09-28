@@ -1,0 +1,33 @@
+/* Notion palette from web/DESIGN.md, solid colors only. Inter stays.
+   Untitled UI reads every gray from --color-neutral-* and the accent from --color-brand-*,
+   so overriding the two scales recolors the whole app. Loaded after untitledui.css.
+   Previous Stripe palette: web/DESIGN.stripe.md. */
+:root {
+    /* Warm grays: text-primary = 900, muted text = 600 (#615d59), borders = 200 (#e6e6e6), sections = 50 (#f6f5f4) */
+    --color-neutral-25: #fbfbfa;
+    --color-neutral-50: #f6f5f4;
+    --color-neutral-100: #efeeec;
+    --color-neutral-200: #e6e6e6;
+    --color-neutral-300: #d3d1ce;
+    --color-neutral-400: #a39e98;
+    --color-neutral-500: #7d7873;
+    --color-neutral-600: #615d59;
+    --color-neutral-700: #4a4744;
+    --color-neutral-800: #31302e;
+    --color-neutral-900: #191918;
+    --color-neutral-950: #0f0f0e;
+
+    /* Notion blue accent: buttons and links = 600 (#0075de), hover = 700 (#005bab) */
+    --color-brand-25: #f5faff;
+    --color-brand-50: #eaf4fd;
+    --color-brand-100: #d6e9fb;
+    --color-brand-200: #aed3f6;
+    --color-brand-300: #85bdf1;
+    --color-brand-400: #62aef0;
+    --color-brand-500: #2f8ee6;
+    --color-brand-600: #0075de;
+    --color-brand-700: #005bab;
+    --color-brand-800: #0a4a86;
+    --color-brand-900: #0d3a66;
+    --color-brand-950: #0a2540;
+}
