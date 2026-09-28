@@ -1,0 +1,22 @@
+name = "creator-deals"
+main = "src/index.ts"
+compatibility_date = "2026-09-01"
+compatibility_flags = ["nodejs_compat"]
+
+[durable_objects]
+bindings = [
+  { name = "DEAL", class_name = "DealDO" },
+  { name = "CAMPAIGN", class_name = "CampaignDO" },
+]
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["DealDO", "CampaignDO"]
+
+[vars]
+PLATFORM_FEE_PCT = "10"
+
+[[rules]]
+type = "Text"
+globs = ["**/*.md"]
+fallthrough = true

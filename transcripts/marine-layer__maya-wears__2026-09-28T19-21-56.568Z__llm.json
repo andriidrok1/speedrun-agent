@@ -1,0 +1,438 @@
+{
+  "brand": "marine-layer",
+  "creator": "maya-wears",
+  "now": "2026-09-28T19:21:56.568Z",
+  "outcome": "agreed",
+  "rounds": 4,
+  "acceptedOffer": {
+    "round": 3,
+    "from": "creator",
+    "package": {
+      "cash_usd": 3050,
+      "product": [
+        {
+          "sku": "Re-Spun Signature Crew",
+          "retail_value_usd": 58,
+          "qty": 1
+        },
+        {
+          "sku": "Cloud 9 Fleece Relaxed Hoodie",
+          "retail_value_usd": 118,
+          "qty": 1
+        },
+        {
+          "sku": "Saturday Twill Chino - Slim Straight",
+          "retail_value_usd": 138,
+          "qty": 1
+        }
+      ],
+      "affiliate_pct": 15,
+      "store_credit_usd": 300,
+      "custom": [
+        "Invite to SF HQ Re-Spun launch event (Oct 2026)",
+        "Feature on @marinelayer Instagram (feed or Stories repost)",
+        "Early access to new drops for the season"
+      ]
+    },
+    "deliverables": [
+      {
+        "type": "reel",
+        "qty": 1,
+        "notes": "Product on screen >= 8 seconds; Re-Spun name said or shown once"
+      },
+      {
+        "type": "story",
+        "qty": 3,
+        "notes": "Link sticker with campaign link or code"
+      }
+    ],
+    "usage_rights": "paid_ads_30d",
+    "exclusivity": {
+      "category": "apparel",
+      "days": 30
+    },
+    "deadline": "2026-10-28",
+    "message": "I love this and can do 1 Reel + 3 Stories for $3,050 cash plus the Re-Spun Signature Crew, Cloud 9 Fleece Relaxed Hoodie and Saturday Twill Chino, 15% affiliate, $300 store credit and the SF HQ invite, repost and early access; 30-day paid-ads rights and 30-day apparel exclusivity, deliver by 2026-10-28. If you want the TikTok cut, I can add it as an add-on.",
+    "status": "counter"
+  },
+  "turns": [
+    {
+      "package": {
+        "cash_usd": 2500,
+        "product": [
+          {
+            "sku": "Re-Spun Signature Crew",
+            "retail_value_usd": 58,
+            "qty": 1
+          },
+          {
+            "sku": "Cloud 9 Fleece Relaxed Hoodie",
+            "retail_value_usd": 118,
+            "qty": 1
+          },
+          {
+            "sku": "Saturday Twill Chino - Slim Straight",
+            "retail_value_usd": 138,
+            "qty": 1
+          }
+        ],
+        "affiliate_pct": 12,
+        "store_credit_usd": 300,
+        "custom": [
+          "Invite to SF HQ Re-Spun launch event (Oct 2026)",
+          "Feature on @marinelayer Instagram (feed or Stories repost)",
+          "Early access to new drops for the season"
+        ]
+      },
+      "deliverables": [
+        {
+          "type": "reel",
+          "qty": 1,
+          "notes": "Product on screen >= 8 seconds; Re-Spun name said or shown once"
+        },
+        {
+          "type": "story",
+          "qty": 3,
+          "notes": "Link sticker with campaign link or code"
+        }
+      ],
+      "usage_rights": "paid_ads_30d",
+      "exclusivity": {
+        "category": "apparel",
+        "days": 30
+      },
+      "deadline": "2026-10-28",
+      "message": "Hi Maya — I’d love to do 1 Reel + 3 Stories for $2,500 cash, 1 Re-Spun Signature Crew, 1 Cloud 9 Fleece Relaxed Hoodie and 1 Saturday Twill Chino, 12% affiliate, $300 store credit, plus an invite to our SF HQ Re-Spun launch event, a repost on @marinelayer and early access to new drops; 30-day paid-ads rights and 30-day apparel exclusivity, deliver by 2026-10-28. We’re obsessed with softness and think your Bay Area, thrift-forward vibe would land this perfectly. Say if you want a TikTok cut and we’ll add it as an add-on.",
+      "status": "offer",
+      "round": 1,
+      "from": "brand",
+      "ts": "2026-09-28T19:21:56.568Z",
+      "value_for_brand_usd": 3575.6,
+      "value_for_creator_usd": 3937
+    },
+    {
+      "package": {
+        "cash_usd": 3400,
+        "product": [
+          {
+            "sku": "Re-Spun Signature Crew",
+            "retail_value_usd": 58,
+            "qty": 1
+          },
+          {
+            "sku": "Cloud 9 Fleece Relaxed Hoodie",
+            "retail_value_usd": 118,
+            "qty": 1
+          },
+          {
+            "sku": "Saturday Twill Chino - Slim Straight",
+            "retail_value_usd": 138,
+            "qty": 1
+          }
+        ],
+        "affiliate_pct": 15,
+        "store_credit_usd": 300,
+        "custom": [
+          "Invite to SF HQ Re-Spun launch event (Oct 2026)",
+          "Feature on @marinelayer Instagram (feed or Stories repost)",
+          "Early access to new drops for the season"
+        ]
+      },
+      "deliverables": [
+        {
+          "type": "reel",
+          "qty": 1,
+          "notes": "Product on screen >= 8 seconds; Re-Spun name said or shown once"
+        },
+        {
+          "type": "story",
+          "qty": 3,
+          "notes": "Link sticker with campaign link or code"
+        }
+      ],
+      "usage_rights": "paid_ads_30d",
+      "exclusivity": {
+        "category": "apparel",
+        "days": 30
+      },
+      "deadline": "2026-10-28",
+      "message": "I love Marine Layer and would wear this — I can do 1 Reel + 3 Stories for $3,400 cash plus the Re-Spun Signature Crew, Cloud 9 Fleece Relaxed Hoodie and Saturday Twill Chino, 15% affiliate, $300 store credit and the SF HQ invite, repost and early access; 30-day paid-ads rights and 30-day apparel exclusivity, deliver by 2026-10-28. If you want the TikTok cut, I can add it as an add-on.",
+      "status": "counter",
+      "round": 1,
+      "from": "creator",
+      "ts": "2026-09-28T19:22:56.568Z",
+      "value_for_brand_usd": 4610.6,
+      "value_for_creator_usd": 5107
+    },
+    {
+      "package": {
+        "cash_usd": 2800,
+        "product": [
+          {
+            "sku": "Re-Spun Signature Crew",
+            "retail_value_usd": 58,
+            "qty": 1
+          },
+          {
+            "sku": "Cloud 9 Fleece Relaxed Hoodie",
+            "retail_value_usd": 118,
+            "qty": 1
+          },
+          {
+            "sku": "Saturday Twill Chino - Slim Straight",
+            "retail_value_usd": 138,
+            "qty": 1
+          }
+        ],
+        "affiliate_pct": 14,
+        "store_credit_usd": 300,
+        "custom": [
+          "Invite to SF HQ Re-Spun launch event (Oct 2026)",
+          "Feature on @marinelayer Instagram (feed or Stories repost)",
+          "Early access to new drops for the season"
+        ]
+      },
+      "deliverables": [
+        {
+          "type": "reel",
+          "qty": 1,
+          "notes": "Product on screen >= 8 seconds; Re-Spun name said or shown once"
+        },
+        {
+          "type": "story",
+          "qty": 3,
+          "notes": "Link sticker with campaign link or code"
+        }
+      ],
+      "usage_rights": "paid_ads_30d",
+      "exclusivity": {
+        "category": "apparel",
+        "days": 30
+      },
+      "deadline": "2026-10-28",
+      "message": "Hey Maya — I can meet you partway: $2,800 cash plus 1 Re-Spun Signature Crew ($58), 1 Cloud 9 Fleece Relaxed Hoodie ($118) and 1 Saturday Twill Chino - Slim Straight ($138), 14% affiliate, $300 store credit, plus the SF HQ invite, a repost on @marinelayer and early access to new drops; 30-day paid-ads rights and 30-day apparel exclusivity, deliver by 2026-10-28. I’m obsessed with your Bay Area, thrift-forward vibe and think this mix will land. If you want the TikTok cut, I can add it as an add-on.",
+      "status": "counter",
+      "round": 2,
+      "from": "brand",
+      "ts": "2026-09-28T19:23:56.568Z",
+      "value_for_brand_usd": 3965.6,
+      "value_for_creator_usd": 4237
+    },
+    {
+      "package": {
+        "cash_usd": 3100,
+        "product": [
+          {
+            "sku": "Re-Spun Signature Crew",
+            "retail_value_usd": 58,
+            "qty": 1
+          },
+          {
+            "sku": "Cloud 9 Fleece Relaxed Hoodie",
+            "retail_value_usd": 118,
+            "qty": 1
+          },
+          {
+            "sku": "Saturday Twill Chino - Slim Straight",
+            "retail_value_usd": 138,
+            "qty": 1
+          }
+        ],
+        "affiliate_pct": 15,
+        "store_credit_usd": 300,
+        "custom": [
+          "Invite to SF HQ Re-Spun launch event (Oct 2026)",
+          "Feature on @marinelayer Instagram (feed or Stories repost)",
+          "Early access to new drops for the season"
+        ]
+      },
+      "deliverables": [
+        {
+          "type": "reel",
+          "qty": 1,
+          "notes": "Product on screen >= 8 seconds; Re-Spun name said or shown once"
+        },
+        {
+          "type": "story",
+          "qty": 3,
+          "notes": "Link sticker with campaign link or code"
+        }
+      ],
+      "usage_rights": "paid_ads_30d",
+      "exclusivity": {
+        "category": "apparel",
+        "days": 30
+      },
+      "deadline": "2026-10-28",
+      "message": "I love Marine Layer and would wear these pieces — I can do 1 Reel + 3 Stories for $3,100 cash plus the Re-Spun Signature Crew, Cloud 9 Fleece Relaxed Hoodie and Saturday Twill Chino, 15% affiliate, $300 store credit and the SF HQ invite, repost and early access; 30-day paid-ads rights and 30-day apparel exclusivity, deliver by 2026-10-28.",
+      "status": "counter",
+      "round": 2,
+      "from": "creator",
+      "ts": "2026-09-28T19:24:56.568Z",
+      "value_for_brand_usd": 4310.6,
+      "value_for_creator_usd": 4807
+    },
+    {
+      "package": {
+        "cash_usd": 3000,
+        "product": [
+          {
+            "sku": "Re-Spun Signature Crew",
+            "retail_value_usd": 58,
+            "qty": 1
+          },
+          {
+            "sku": "Cloud 9 Fleece Relaxed Hoodie",
+            "retail_value_usd": 118,
+            "qty": 1
+          },
+          {
+            "sku": "Saturday Twill Chino - Slim Straight",
+            "retail_value_usd": 138,
+            "qty": 1
+          }
+        ],
+        "affiliate_pct": 15,
+        "store_credit_usd": 300,
+        "custom": [
+          "Invite to SF HQ Re-Spun launch event (Oct 2026)",
+          "Feature on @marinelayer Instagram (feed or Stories repost)",
+          "Early access to new drops for the season"
+        ]
+      },
+      "deliverables": [
+        {
+          "type": "reel",
+          "qty": 1,
+          "notes": "Product on screen >= 8 seconds; Re-Spun name said or shown once"
+        },
+        {
+          "type": "story",
+          "qty": 3,
+          "notes": "Link sticker with campaign link or code"
+        }
+      ],
+      "usage_rights": "paid_ads_30d",
+      "exclusivity": {
+        "category": "apparel",
+        "days": 30
+      },
+      "deadline": "2026-10-28",
+      "message": "Hey Maya — I can meet you closer: $3,000 cash plus the Re-Spun Signature Crew, Cloud 9 Fleece Relaxed Hoodie and Saturday Twill Chino, 15% affiliate, $300 store credit, invite to our SF HQ Re-Spun launch event, a repost on @marinelayer and early access to new drops; 30-day paid-ads rights and 30-day apparel exclusivity, deliver by 2026-10-28.",
+      "status": "counter",
+      "round": 3,
+      "from": "brand",
+      "ts": "2026-09-28T19:25:56.568Z",
+      "value_for_brand_usd": 4210.6,
+      "value_for_creator_usd": 4707
+    },
+    {
+      "package": {
+        "cash_usd": 3050,
+        "product": [
+          {
+            "sku": "Re-Spun Signature Crew",
+            "retail_value_usd": 58,
+            "qty": 1
+          },
+          {
+            "sku": "Cloud 9 Fleece Relaxed Hoodie",
+            "retail_value_usd": 118,
+            "qty": 1
+          },
+          {
+            "sku": "Saturday Twill Chino - Slim Straight",
+            "retail_value_usd": 138,
+            "qty": 1
+          }
+        ],
+        "affiliate_pct": 15,
+        "store_credit_usd": 300,
+        "custom": [
+          "Invite to SF HQ Re-Spun launch event (Oct 2026)",
+          "Feature on @marinelayer Instagram (feed or Stories repost)",
+          "Early access to new drops for the season"
+        ]
+      },
+      "deliverables": [
+        {
+          "type": "reel",
+          "qty": 1,
+          "notes": "Product on screen >= 8 seconds; Re-Spun name said or shown once"
+        },
+        {
+          "type": "story",
+          "qty": 3,
+          "notes": "Link sticker with campaign link or code"
+        }
+      ],
+      "usage_rights": "paid_ads_30d",
+      "exclusivity": {
+        "category": "apparel",
+        "days": 30
+      },
+      "deadline": "2026-10-28",
+      "message": "I love this and can do 1 Reel + 3 Stories for $3,050 cash plus the Re-Spun Signature Crew, Cloud 9 Fleece Relaxed Hoodie and Saturday Twill Chino, 15% affiliate, $300 store credit and the SF HQ invite, repost and early access; 30-day paid-ads rights and 30-day apparel exclusivity, deliver by 2026-10-28. If you want the TikTok cut, I can add it as an add-on.",
+      "status": "counter",
+      "round": 3,
+      "from": "creator",
+      "ts": "2026-09-28T19:26:56.568Z",
+      "value_for_brand_usd": 4260.6,
+      "value_for_creator_usd": 4757
+    },
+    {
+      "package": {
+        "cash_usd": 3050,
+        "product": [
+          {
+            "sku": "Re-Spun Signature Crew",
+            "retail_value_usd": 58,
+            "qty": 1
+          },
+          {
+            "sku": "Cloud 9 Fleece Relaxed Hoodie",
+            "retail_value_usd": 118,
+            "qty": 1
+          },
+          {
+            "sku": "Saturday Twill Chino - Slim Straight",
+            "retail_value_usd": 138,
+            "qty": 1
+          }
+        ],
+        "affiliate_pct": 15,
+        "store_credit_usd": 300,
+        "custom": [
+          "Invite to SF HQ Re-Spun launch event (Oct 2026)",
+          "Feature on @marinelayer Instagram (feed or Stories repost)",
+          "Early access to new drops for the season"
+        ]
+      },
+      "deliverables": [
+        {
+          "type": "reel",
+          "qty": 1,
+          "notes": "Product on screen >= 8 seconds; Re-Spun name said or shown once"
+        },
+        {
+          "type": "story",
+          "qty": 3,
+          "notes": "Link sticker with campaign link or code"
+        }
+      ],
+      "usage_rights": "paid_ads_30d",
+      "exclusivity": {
+        "category": "apparel",
+        "days": 30
+      },
+      "deadline": "2026-10-28",
+      "message": "Love this — I’m happy to move forward: $3,050 cash plus the Re-Spun Signature Crew, Cloud 9 Fleece Relaxed Hoodie and Saturday Twill Chino, 15% affiliate, $300 store credit, plus the SF HQ invite, a repost and early access; 30-day paid-ads rights and 30-day apparel exclusivity, deliver by 2026-10-28. Excited to see how you tell the Re-Spun softness story in your Bay Area way.",
+      "status": "accept",
+      "round": 4,
+      "from": "brand",
+      "ts": "2026-09-28T19:27:56.568Z",
+      "value_for_brand_usd": 4260.6,
+      "value_for_creator_usd": 4757
+    }
+  ]
+}

@@ -1,0 +1,240 @@
+{
+  "brand": "marine-layer",
+  "creator": "maya-wears",
+  "now": "2026-09-28T12:00:00.000Z",
+  "outcome": "agreed",
+  "rounds": 2,
+  "acceptedOffer": {
+    "round": 2,
+    "from": "brand",
+    "package": {
+      "product": [
+        {
+          "sku": "Cloud 9 Fleece Relaxed Hoodie",
+          "retail_value_usd": 118,
+          "qty": 2
+        },
+        {
+          "sku": "Re-Spun Signature Crew",
+          "retail_value_usd": 58,
+          "qty": 1
+        }
+      ],
+      "affiliate_pct": 18,
+      "store_credit_usd": 0,
+      "custom": [
+        "Invite to SF HQ Re-Spun launch event (Oct 2026)"
+      ],
+      "cash_usd": 3277.4
+    },
+    "deliverables": [
+      {
+        "type": "reel",
+        "qty": 1,
+        "notes": "Product on screen >= 8 seconds, Re-Spun said or shown once"
+      },
+      {
+        "type": "story",
+        "qty": 3,
+        "notes": "Link sticker with campaign link or code"
+      }
+    ],
+    "usage_rights": "organic_only",
+    "exclusivity": {
+      "category": "apparel",
+      "days": 30
+    },
+    "deadline": "2026-10-25",
+    "message": "We can move. Round 2: $3,277.40 cash, 2x Cloud 9 Fleece Relaxed Hoodie, 1x Re-Spun Signature Crew, 18% affiliate, Invite to SF HQ Re-Spun launch event (Oct 2026). Same deliverables and terms.",
+    "status": "counter",
+    "ts": "2026-09-28T12:02:00.000Z",
+    "value_for_brand_usd": 4355,
+    "value_for_creator_usd": 4248.4
+  },
+  "turns": [
+    {
+      "round": 1,
+      "from": "brand",
+      "package": {
+        "product": [
+          {
+            "sku": "Cloud 9 Fleece Relaxed Hoodie",
+            "retail_value_usd": 118,
+            "qty": 2
+          },
+          {
+            "sku": "Re-Spun Signature Crew",
+            "retail_value_usd": 58,
+            "qty": 1
+          }
+        ],
+        "affiliate_pct": 15,
+        "store_credit_usd": 0,
+        "custom": [],
+        "cash_usd": 2782.4
+      },
+      "deliverables": [
+        {
+          "type": "reel",
+          "qty": 1,
+          "notes": "Product on screen >= 8 seconds, Re-Spun said or shown once"
+        },
+        {
+          "type": "story",
+          "qty": 3,
+          "notes": "Link sticker with campaign link or code"
+        }
+      ],
+      "usage_rights": "organic_only",
+      "exclusivity": {
+        "category": "apparel",
+        "days": 30
+      },
+      "deadline": "2026-10-25",
+      "message": "Hi Maya, we'd love 1 reel + 3 stories for Fall 2026 Re-Spun Launch. Opening offer: $2,782.40 cash, 2x Cloud 9 Fleece Relaxed Hoodie, 1x Re-Spun Signature Crew, 15% affiliate. Organic usage, 30-day apparel exclusivity, due 2026-10-25.",
+      "status": "offer",
+      "ts": "2026-09-28T12:00:00.000Z",
+      "value_for_brand_usd": 3575,
+      "value_for_creator_usd": 3199.4
+    },
+    {
+      "round": 1,
+      "from": "creator",
+      "package": {
+        "product": [
+          {
+            "sku": "Cloud 9 Fleece Relaxed Hoodie",
+            "retail_value_usd": 118,
+            "qty": 2
+          },
+          {
+            "sku": "Re-Spun Signature Crew",
+            "retail_value_usd": 58,
+            "qty": 1
+          }
+        ],
+        "affiliate_pct": 15,
+        "store_credit_usd": 0,
+        "custom": [],
+        "cash_usd": 4240.5
+      },
+      "deliverables": [
+        {
+          "type": "reel",
+          "qty": 1,
+          "notes": "Product on screen >= 8 seconds, Re-Spun said or shown once"
+        },
+        {
+          "type": "story",
+          "qty": 3,
+          "notes": "Link sticker with campaign link or code"
+        }
+      ],
+      "usage_rights": "organic_only",
+      "exclusivity": {
+        "category": "apparel",
+        "days": 30
+      },
+      "deadline": "2026-10-25",
+      "message": "Thanks, I like the Marine Layer stuff and I'm in on the 1 reel + 3 stories. That cash number is under where I land for these terms. I can do $4,240.50 cash, keeping the product and the 15% affiliate.",
+      "status": "counter",
+      "ts": "2026-09-28T12:01:00.000Z",
+      "value_for_brand_usd": 5033.1,
+      "value_for_creator_usd": 4657.5
+    },
+    {
+      "round": 2,
+      "from": "brand",
+      "package": {
+        "product": [
+          {
+            "sku": "Cloud 9 Fleece Relaxed Hoodie",
+            "retail_value_usd": 118,
+            "qty": 2
+          },
+          {
+            "sku": "Re-Spun Signature Crew",
+            "retail_value_usd": 58,
+            "qty": 1
+          }
+        ],
+        "affiliate_pct": 18,
+        "store_credit_usd": 0,
+        "custom": [
+          "Invite to SF HQ Re-Spun launch event (Oct 2026)"
+        ],
+        "cash_usd": 3277.4
+      },
+      "deliverables": [
+        {
+          "type": "reel",
+          "qty": 1,
+          "notes": "Product on screen >= 8 seconds, Re-Spun said or shown once"
+        },
+        {
+          "type": "story",
+          "qty": 3,
+          "notes": "Link sticker with campaign link or code"
+        }
+      ],
+      "usage_rights": "organic_only",
+      "exclusivity": {
+        "category": "apparel",
+        "days": 30
+      },
+      "deadline": "2026-10-25",
+      "message": "We can move. Round 2: $3,277.40 cash, 2x Cloud 9 Fleece Relaxed Hoodie, 1x Re-Spun Signature Crew, 18% affiliate, Invite to SF HQ Re-Spun launch event (Oct 2026). Same deliverables and terms.",
+      "status": "counter",
+      "ts": "2026-09-28T12:02:00.000Z",
+      "value_for_brand_usd": 4355,
+      "value_for_creator_usd": 4248.4
+    },
+    {
+      "round": 2,
+      "from": "creator",
+      "package": {
+        "product": [
+          {
+            "sku": "Cloud 9 Fleece Relaxed Hoodie",
+            "retail_value_usd": 118,
+            "qty": 2
+          },
+          {
+            "sku": "Re-Spun Signature Crew",
+            "retail_value_usd": 58,
+            "qty": 1
+          }
+        ],
+        "affiliate_pct": 18,
+        "store_credit_usd": 0,
+        "custom": [
+          "Invite to SF HQ Re-Spun launch event (Oct 2026)"
+        ],
+        "cash_usd": 3277.4
+      },
+      "deliverables": [
+        {
+          "type": "reel",
+          "qty": 1,
+          "notes": "Product on screen >= 8 seconds, Re-Spun said or shown once"
+        },
+        {
+          "type": "story",
+          "qty": 3,
+          "notes": "Link sticker with campaign link or code"
+        }
+      ],
+      "usage_rights": "organic_only",
+      "exclusivity": {
+        "category": "apparel",
+        "days": 30
+      },
+      "deadline": "2026-10-25",
+      "message": "Deal. Round 2 works for me, send the brief and I'll get it on the calendar.",
+      "status": "accept",
+      "ts": "2026-09-28T12:03:00.000Z",
+      "value_for_brand_usd": 4355,
+      "value_for_creator_usd": 4248.4
+    }
+  ]
+}

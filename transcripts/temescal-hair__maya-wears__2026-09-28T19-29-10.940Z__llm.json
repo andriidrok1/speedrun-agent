@@ -1,0 +1,350 @@
+{
+  "brand": "temescal-hair",
+  "creator": "maya-wears",
+  "now": "2026-09-28T19:29:10.940Z",
+  "outcome": "agreed",
+  "rounds": 4,
+  "acceptedOffer": {
+    "round": 3,
+    "from": "creator",
+    "package": {
+      "cash_usd": 410,
+      "product": [
+        {
+          "sku": "Lived-in Color Session",
+          "retail_value_usd": 260,
+          "qty": 1
+        },
+        {
+          "sku": "Gloss + Blowout",
+          "retail_value_usd": 120,
+          "qty": 1
+        }
+      ],
+      "affiliate_pct": 15,
+      "store_credit_usd": 0,
+      "custom": [
+        "Feature on the salon's Instagram and in-shop screen",
+        "Early access to new stylist openings and event nights"
+      ]
+    },
+    "deliverables": [
+      {
+        "type": "story",
+        "qty": 2,
+        "notes": "Filmed in the chair, tag @temescalhair, link sticker to booking page, name the stylist, FTC disclosure"
+      }
+    ],
+    "usage_rights": "organic_only",
+    "exclusivity": {
+      "category": "hair salons",
+      "days": 0
+    },
+    "deadline": "2026-10-25",
+    "message": "I can do this for $410 cash and I need the affiliate at 15% (that's what actually drives clicks). Oct 20 still works and I love the idea of filming right in the chair.",
+    "status": "counter"
+  },
+  "turns": [
+    {
+      "package": {
+        "cash_usd": 100,
+        "product": [
+          {
+            "sku": "Lived-in Color Session",
+            "retail_value_usd": 260,
+            "qty": 1
+          },
+          {
+            "sku": "Gloss + Blowout",
+            "retail_value_usd": 120,
+            "qty": 1
+          }
+        ],
+        "affiliate_pct": 12,
+        "store_credit_usd": 0,
+        "custom": [
+          "Feature on the salon's Instagram and in-shop screen",
+          "Early access to new stylist openings and event nights"
+        ]
+      },
+      "deliverables": [
+        {
+          "type": "story",
+          "qty": 2,
+          "notes": "Filmed in the chair, tag @temescalhair, link sticker to booking page, name the stylist, FTC disclosure"
+        }
+      ],
+      "usage_rights": "organic_only",
+      "exclusivity": {
+        "category": "hair salons",
+        "days": 0
+      },
+      "deadline": "2026-10-25",
+      "message": "I'd love to do a color session + gloss + blowout in exchange for $100 cash, a 12% booking affiliate, a salon Instagram feature and early access to event nights. Stories should be filmed in the chair, name the stylist, tag us and drop the booking link so viewers can book. Your next open slot on Oct 20 fits—does that timing work for you? I think your handheld, in-chair style will look great here.",
+      "status": "offer",
+      "round": 1,
+      "from": "brand",
+      "ts": "2026-09-28T19:29:10.940Z",
+      "value_for_brand_usd": 357,
+      "value_for_creator_usd": 890
+    },
+    {
+      "package": {
+        "cash_usd": 900,
+        "product": [
+          {
+            "sku": "Lived-in Color Session",
+            "retail_value_usd": 260,
+            "qty": 1
+          },
+          {
+            "sku": "Gloss + Blowout",
+            "retail_value_usd": 120,
+            "qty": 1
+          }
+        ],
+        "affiliate_pct": 15,
+        "store_credit_usd": 0,
+        "custom": [
+          "Feature on the salon's Instagram and in-shop screen",
+          "Early access to new stylist openings and event nights"
+        ]
+      },
+      "deliverables": [
+        {
+          "type": "story",
+          "qty": 2,
+          "notes": "Filmed in the chair, tag @temescalhair, link sticker to booking page, name the stylist, FTC disclosure"
+        }
+      ],
+      "usage_rights": "organic_only",
+      "exclusivity": {
+        "category": "hair salons",
+        "days": 0
+      },
+      "deadline": "2026-10-25",
+      "message": "I can do this for $900 cash plus the two services you offered, and I need the affiliate at 15% (your audience will actually click). Same two in-chair stories, tag and booking link—Oct 20 timing works for me. This gives you genuine in-chair content my followers trust and a fair cash split for the work.",
+      "status": "counter",
+      "round": 1,
+      "from": "creator",
+      "ts": "2026-09-28T19:30:10.940Z",
+      "value_for_brand_usd": 1175,
+      "value_for_creator_usd": 1960
+    },
+    {
+      "package": {
+        "cash_usd": 235,
+        "product": [
+          {
+            "sku": "Lived-in Color Session",
+            "retail_value_usd": 260,
+            "qty": 1
+          },
+          {
+            "sku": "Gloss + Blowout",
+            "retail_value_usd": 120,
+            "qty": 1
+          }
+        ],
+        "affiliate_pct": 13,
+        "store_credit_usd": 0,
+        "custom": [
+          "Feature on the salon's Instagram and in-shop screen",
+          "Early access to new stylist openings and event nights"
+        ]
+      },
+      "deliverables": [
+        {
+          "type": "story",
+          "qty": 2,
+          "notes": "Filmed in the chair, tag @temescalhair, link sticker to booking page, name the stylist, FTC disclosure"
+        }
+      ],
+      "usage_rights": "organic_only",
+      "exclusivity": {
+        "category": "hair salons",
+        "days": 0
+      },
+      "deadline": "2026-10-25",
+      "message": "I'm ready to move to $235 cash and I can bump the affiliate to 13%—same two in-chair stories, the two services, and our IG feature/early access perks stay. I think your in-chair, handheld take will make this feel real to Bay Area folks; can you do Oct 20?",
+      "status": "counter",
+      "round": 2,
+      "from": "brand",
+      "ts": "2026-09-28T19:31:10.940Z",
+      "value_for_brand_usd": 498,
+      "value_for_creator_usd": 1025
+    },
+    {
+      "package": {
+        "cash_usd": 410,
+        "product": [
+          {
+            "sku": "Lived-in Color Session",
+            "retail_value_usd": 260,
+            "qty": 1
+          },
+          {
+            "sku": "Gloss + Blowout",
+            "retail_value_usd": 120,
+            "qty": 1
+          }
+        ],
+        "affiliate_pct": 15,
+        "store_credit_usd": 0,
+        "custom": [
+          "Feature on the salon's Instagram and in-shop screen",
+          "Early access to new stylist openings and event nights"
+        ]
+      },
+      "deliverables": [
+        {
+          "type": "story",
+          "qty": 2,
+          "notes": "Filmed in the chair, tag @temescalhair, link sticker to booking page, name the stylist, FTC disclosure"
+        }
+      ],
+      "usage_rights": "organic_only",
+      "exclusivity": {
+        "category": "hair salons",
+        "days": 0
+      },
+      "deadline": "2026-10-25",
+      "message": "I can do this for $410 cash and the two services you offered, with the affiliate at 15%—same two in-chair stories, tag and booking link, and Oct 20 still works for me. Your IG feature and early-access perks are great; this split feels fair for the time in-chair and the honest recommendation my followers expect.",
+      "status": "counter",
+      "round": 2,
+      "from": "creator",
+      "ts": "2026-09-28T19:32:10.940Z",
+      "value_for_brand_usd": 685,
+      "value_for_creator_usd": 1470
+    },
+    {
+      "package": {
+        "cash_usd": 320,
+        "product": [
+          {
+            "sku": "Lived-in Color Session",
+            "retail_value_usd": 260,
+            "qty": 1
+          },
+          {
+            "sku": "Gloss + Blowout",
+            "retail_value_usd": 120,
+            "qty": 1
+          }
+        ],
+        "affiliate_pct": 14,
+        "store_credit_usd": 0,
+        "custom": [
+          "Feature on the salon's Instagram and in-shop screen",
+          "Early access to new stylist openings and event nights"
+        ]
+      },
+      "deliverables": [
+        {
+          "type": "story",
+          "qty": 2,
+          "notes": "Filmed in the chair, tag @temescalhair, link sticker to booking page, name the stylist, FTC disclosure"
+        }
+      ],
+      "usage_rights": "organic_only",
+      "exclusivity": {
+        "category": "hair salons",
+        "days": 0
+      },
+      "deadline": "2026-10-25",
+      "message": "I'm at $320 cash and can move the affiliate to 14%—same two services, our IG feature and early-access perk, two in-chair stories for Oct 20. This keeps things realistic for the shop and still gets your honest in-chair content; can you meet me there?",
+      "status": "counter",
+      "round": 3,
+      "from": "brand",
+      "ts": "2026-09-28T19:33:10.940Z",
+      "value_for_brand_usd": 589,
+      "value_for_creator_usd": 1110
+    },
+    {
+      "package": {
+        "cash_usd": 410,
+        "product": [
+          {
+            "sku": "Lived-in Color Session",
+            "retail_value_usd": 260,
+            "qty": 1
+          },
+          {
+            "sku": "Gloss + Blowout",
+            "retail_value_usd": 120,
+            "qty": 1
+          }
+        ],
+        "affiliate_pct": 15,
+        "store_credit_usd": 0,
+        "custom": [
+          "Feature on the salon's Instagram and in-shop screen",
+          "Early access to new stylist openings and event nights"
+        ]
+      },
+      "deliverables": [
+        {
+          "type": "story",
+          "qty": 2,
+          "notes": "Filmed in the chair, tag @temescalhair, link sticker to booking page, name the stylist, FTC disclosure"
+        }
+      ],
+      "usage_rights": "organic_only",
+      "exclusivity": {
+        "category": "hair salons",
+        "days": 0
+      },
+      "deadline": "2026-10-25",
+      "message": "I can do this for $410 cash and I need the affiliate at 15% (that's what actually drives clicks). Oct 20 still works and I love the idea of filming right in the chair.",
+      "status": "counter",
+      "round": 3,
+      "from": "creator",
+      "ts": "2026-09-28T19:34:10.940Z",
+      "value_for_brand_usd": 685,
+      "value_for_creator_usd": 1470
+    },
+    {
+      "package": {
+        "cash_usd": 410,
+        "product": [
+          {
+            "sku": "Lived-in Color Session",
+            "retail_value_usd": 260,
+            "qty": 1
+          },
+          {
+            "sku": "Gloss + Blowout",
+            "retail_value_usd": 120,
+            "qty": 1
+          }
+        ],
+        "affiliate_pct": 15,
+        "store_credit_usd": 0,
+        "custom": [
+          "Feature on the salon's Instagram and in-shop screen",
+          "Early access to new stylist openings and event nights"
+        ]
+      },
+      "deliverables": [
+        {
+          "type": "story",
+          "qty": 2,
+          "notes": "Filmed in the chair, tag @temescalhair, link sticker to booking page, name the stylist, FTC disclosure"
+        }
+      ],
+      "usage_rights": "organic_only",
+      "exclusivity": {
+        "category": "hair salons",
+        "days": 0
+      },
+      "deadline": "2026-10-25",
+      "message": "I'm in at $410 cash plus the two services and a 15% booking affiliate—same two in-chair stories for Oct 20 and the IG feature/early access perks. Really excited to have you film in the chair; which stylist do you want to book with?",
+      "status": "accept",
+      "round": 4,
+      "from": "brand",
+      "ts": "2026-09-28T19:35:10.940Z",
+      "value_for_brand_usd": 685,
+      "value_for_creator_usd": 1470
+    }
+  ]
+}

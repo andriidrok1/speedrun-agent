@@ -1,0 +1,215 @@
+{
+  "brand": "temescal-hair",
+  "creator": "maya-wears",
+  "now": "2026-09-28T19:26:32.182Z",
+  "outcome": "agreed",
+  "rounds": 2,
+  "acceptedOffer": {
+    "round": 2,
+    "from": "brand",
+    "package": {
+      "product": [
+        {
+          "sku": "Gloss + Blowout",
+          "retail_value_usd": 120,
+          "qty": 2
+        },
+        {
+          "sku": "Signature Cut + Style",
+          "retail_value_usd": 95,
+          "qty": 1
+        }
+      ],
+      "affiliate_pct": 15,
+      "store_credit_usd": 0,
+      "custom": [
+        "Standing monthly blowout for 3 months"
+      ],
+      "cash_usd": 355
+    },
+    "deliverables": [
+      {
+        "type": "story",
+        "qty": 2,
+        "notes": "Filmed in the chair, tag @temescalhair, link sticker to booking page"
+      }
+    ],
+    "usage_rights": "organic_only",
+    "exclusivity": {
+      "category": "hair salon (services)",
+      "days": 30
+    },
+    "deadline": "2026-10-20",
+    "message": "We can move. Round 2: $355.00 cash, 2x Gloss + Blowout, 1x Signature Cut + Style, 15% affiliate, Standing monthly blowout for 3 months. Same deliverables and terms.",
+    "status": "counter",
+    "ts": "2026-09-28T19:28:32.182Z",
+    "value_for_brand_usd": 675,
+    "value_for_creator_usd": 792.5
+  },
+  "turns": [
+    {
+      "round": 1,
+      "from": "brand",
+      "package": {
+        "product": [
+          {
+            "sku": "Gloss + Blowout",
+            "retail_value_usd": 120,
+            "qty": 2
+          },
+          {
+            "sku": "Signature Cut + Style",
+            "retail_value_usd": 95,
+            "qty": 1
+          }
+        ],
+        "affiliate_pct": 13,
+        "store_credit_usd": 0,
+        "custom": [],
+        "cash_usd": 352
+      },
+      "deliverables": [
+        {
+          "type": "story",
+          "qty": 2,
+          "notes": "Filmed in the chair, tag @temescalhair, link sticker to booking page"
+        }
+      ],
+      "usage_rights": "organic_only",
+      "exclusivity": {
+        "category": "hair salon (services)",
+        "days": 30
+      },
+      "deadline": "2026-10-20",
+      "message": "Hi Maya, we'd love 2 stories for Fall 2026 New Client Push. Opening offer: $352.00 cash, 2x Gloss + Blowout, 1x Signature Cut + Style, 13% affiliate. Organic usage, 30-day hair salon (services) exclusivity, due 2026-10-20.",
+      "status": "offer",
+      "ts": "2026-09-28T19:26:32.182Z",
+      "value_for_brand_usd": 540,
+      "value_for_creator_usd": 519.5
+    },
+    {
+      "round": 1,
+      "from": "creator",
+      "package": {
+        "product": [
+          {
+            "sku": "Gloss + Blowout",
+            "retail_value_usd": 120,
+            "qty": 2
+          },
+          {
+            "sku": "Signature Cut + Style",
+            "retail_value_usd": 95,
+            "qty": 1
+          }
+        ],
+        "affiliate_pct": 13,
+        "store_credit_usd": 0,
+        "custom": [],
+        "cash_usd": 764
+      },
+      "deliverables": [
+        {
+          "type": "story",
+          "qty": 2,
+          "notes": "Filmed in the chair, tag @temescalhair, link sticker to booking page"
+        }
+      ],
+      "usage_rights": "organic_only",
+      "exclusivity": {
+        "category": "hair salon (services)",
+        "days": 30
+      },
+      "deadline": "2026-10-20",
+      "message": "Thanks, I like the Temescal Hair Co. stuff and I'm in on the 2 stories. That cash number is under where I land for these terms. I can do $764.00 cash, keeping the product and the 13% affiliate.",
+      "status": "counter",
+      "ts": "2026-09-28T19:27:32.182Z",
+      "value_for_brand_usd": 952,
+      "value_for_creator_usd": 931.5
+    },
+    {
+      "round": 2,
+      "from": "brand",
+      "package": {
+        "product": [
+          {
+            "sku": "Gloss + Blowout",
+            "retail_value_usd": 120,
+            "qty": 2
+          },
+          {
+            "sku": "Signature Cut + Style",
+            "retail_value_usd": 95,
+            "qty": 1
+          }
+        ],
+        "affiliate_pct": 15,
+        "store_credit_usd": 0,
+        "custom": [
+          "Standing monthly blowout for 3 months"
+        ],
+        "cash_usd": 355
+      },
+      "deliverables": [
+        {
+          "type": "story",
+          "qty": 2,
+          "notes": "Filmed in the chair, tag @temescalhair, link sticker to booking page"
+        }
+      ],
+      "usage_rights": "organic_only",
+      "exclusivity": {
+        "category": "hair salon (services)",
+        "days": 30
+      },
+      "deadline": "2026-10-20",
+      "message": "We can move. Round 2: $355.00 cash, 2x Gloss + Blowout, 1x Signature Cut + Style, 15% affiliate, Standing monthly blowout for 3 months. Same deliverables and terms.",
+      "status": "counter",
+      "ts": "2026-09-28T19:28:32.182Z",
+      "value_for_brand_usd": 675,
+      "value_for_creator_usd": 792.5
+    },
+    {
+      "round": 2,
+      "from": "creator",
+      "package": {
+        "product": [
+          {
+            "sku": "Gloss + Blowout",
+            "retail_value_usd": 120,
+            "qty": 2
+          },
+          {
+            "sku": "Signature Cut + Style",
+            "retail_value_usd": 95,
+            "qty": 1
+          }
+        ],
+        "affiliate_pct": 15,
+        "store_credit_usd": 0,
+        "custom": [
+          "Standing monthly blowout for 3 months"
+        ],
+        "cash_usd": 355
+      },
+      "deliverables": [
+        {
+          "type": "story",
+          "qty": 2,
+          "notes": "Filmed in the chair, tag @temescalhair, link sticker to booking page"
+        }
+      ],
+      "usage_rights": "organic_only",
+      "exclusivity": {
+        "category": "hair salon (services)",
+        "days": 30
+      },
+      "deadline": "2026-10-20",
+      "message": "Deal. Round 2 works for me, send the brief and I'll get it on the calendar.",
+      "status": "accept",
+      "ts": "2026-09-28T19:29:32.182Z",
+      "value_for_brand_usd": 675,
+      "value_for_creator_usd": 792.5
+    }
+  ]
+}

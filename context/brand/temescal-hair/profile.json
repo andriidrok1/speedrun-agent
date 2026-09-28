@@ -1,0 +1,85 @@
+{
+  "public": {
+    "name": "Temescal Hair Co.",
+    "site": "https://temescalhair.example",
+    "category": "hair salon (services)",
+    "hq": "Oakland, CA",
+    "campaign": {
+      "name": "Fall 2026 New Client Push",
+      "goal": "Fill October and early November chairs with first-time clients from Oakland, Berkeley and SF who become 10-week regulars. Success is booking-link taps and new-client bookings, not reach.",
+      "window": { "start": "2026-10-10", "end": "2026-11-15" },
+      "wanted_deliverables": [
+        { "type": "story", "qty": 2, "notes": "Filmed in the chair, tag @temescalhair, link sticker to booking page" }
+      ],
+      "target_audience": "women 22-38 in Oakland/Berkeley/SF"
+    },
+    "brand_voice": "Warm, direct, a little cheeky. Talks like a stylist who has heard every hair horror story and isn't fazed. Never says luxury or transformation. Short sentences, first names.",
+    "content_guidelines": [
+      "Film in the chair, in the shop; the salon on screen is the point",
+      "Show the service happening (foils, the cut, the blowout); before and after welcome",
+      "Name the stylist; clients book people, not shops",
+      "Tag @temescalhair, link sticker to the booking page, FTC disclosure",
+      "Creator's own words about how the appointment felt; no script",
+      "Natural light from the front windows or the shop's ring lights"
+    ],
+    "no_gos": [
+      "No before shots that mock a previous stylist or another salon by name",
+      "No discount codes above 15% for first visits",
+      "No content filmed outside the salon presented as the salon's work",
+      "No chemical-service claims (damage-free, permanent) the shop can't back up",
+      "No perpetual usage rights; organic plus 30-day paid reposts is the ceiling"
+    ],
+    "barter_menu": {
+      "product": [
+        { "sku": "Signature Cut + Style", "retail_value_usd": 95, "wholesale_cost_usd": 30 },
+        { "sku": "Lived-in Color Session", "retail_value_usd": 260, "wholesale_cost_usd": 85 },
+        { "sku": "Curly Cut + Treatment", "retail_value_usd": 140, "wholesale_cost_usd": 45 },
+        { "sku": "Gloss + Blowout", "retail_value_usd": 120, "wholesale_cost_usd": 40 }
+      ],
+      "affiliate_pct_range": [10, 15],
+      "store_credit": true,
+      "custom": [
+        "Standing monthly blowout for 3 months",
+        "Feature on the salon's Instagram and in-shop screen",
+        "Early access to new stylist openings and event nights"
+      ]
+    }
+  },
+  "private": {
+    "budget_total_usd": 3000,
+    "budget_per_creator_max_usd": 900,
+    "target_cpm_usd": 15,
+    "valuation": {
+      "product_counted_at": "wholesale_cost",
+      "affiliate_expected_sales_usd_per_creator": 600,
+      "store_credit_counted_at_pct": 50,
+      "custom_counted_at_usd": {
+        "Standing monthly blowout for 3 months": 120,
+        "Feature on the salon's Instagram and in-shop screen": 40,
+        "Early access to new stylist openings and event nights": 20
+      }
+    },
+    "concession_rules": {
+      "first_offer_pct_of_max": 60,
+      "step_pct": 15,
+      "max_rounds": 6,
+      "notes": "Open at 60% of per-creator max as services first (color session, cut), plus the IG feature and event early access which cost almost nothing. Each round add up to 15% of max: more services, store credit or booking-referral points before cash. Cash last and in small steps. Walk after round 6."
+    },
+    "priorities": [
+      "Service actually received and shown on camera, in the chair",
+      "Creator is an Oakland/Berkeley/SF local with a local audience",
+      "Booking link sticker in every story",
+      "Stylist named on screen or in caption",
+      "Service-heavy mixes over cash (services cost ~33% of retail)",
+      "Booking-referral affiliate accepted (performance-based)"
+    ],
+    "walk_away_if": [
+      "Creator demands cash only with no services in the package",
+      "Deliverables would not be filmed in the salon",
+      "All-in cost (cash + service cost + credit at 50% + custom) exceeds 900 USD",
+      "Creator asks for perpetual usage rights or refuses FTC disclosure",
+      "Creator insists on a first-visit discount code above 15%",
+      "No agreement after 6 rounds"
+    ]
+  }
+}

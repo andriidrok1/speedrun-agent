@@ -1,0 +1,379 @@
+// DealDO: one per deal. Runs the negotiation, stores the transcript, and owns every status
+// transition that moves money (fund / verify+payout / expire+refund) so state and Stripe never race.
+import { DurableObject } from 'cloudflare:workers';
+import type { Env } from './index';
+import type { BrandProfile, Creator, CreatorProfile, Deal, DealStatus, Offer, Turn } from './types';
+import { BRANDS, CREATORS, BRAND_NARRATIVES, CREATOR_NARRATIVES } from './profiles.bundle';
+import { runNegotiation, type NegotiationResult } from './engine/index';
+import { runNegotiationLLM } from './agents/negotiate';
+import { createClient } from './agents/llm';
+import { makeStripe, ensureCreatorAccount, chargeBrand, payoutCreator, refundBrand } from './stripe';
+import { verifyPostLive, mockVerify, type VerifyResult } from './verify';
+import { fail } from './campaign.do';
+
+// ---- negotiation strategy -----------------------------------------------------------------------
+// LLM (OpenAI) when OPENAI_API_KEY is set and LLM_MODE != 'off', otherwise the deterministic engine.
+// Either way the engine's rules decide what is legal; the LLM only picks the package and writes text.
+type NegotiateOpts = { onTurn: (t: Turn) => void; log?: (line: string) => void };
+
+export async function negotiate(
+  env: Env, slugs: { brandSlug: string; creatorSlug: string },
+  brand: BrandProfile, creator: CreatorProfile, now: Date, opts: NegotiateOpts,
+): Promise<NegotiationResult & { mode: 'llm' | 'engine' }> {
+  const useLlm = !!env.OPENAI_API_KEY && env.LLM_MODE !== 'off';
+  if (!useLlm) {
+    const r = runNegotiation({ brand, creator, now });
+    for (const t of r.turns) opts.onTurn(t);
+    return { ...r, mode: 'engine' };
+  }
+  const brandNarrative = BRAND_NARRATIVES[slugs.brandSlug] ?? `${brand.public.name}: ${brand.public.brand_voice}`;
+  const creatorNarrative = CREATOR_NARRATIVES[slugs.creatorSlug] ?? `${creator.public.name} (${creator.public.handle}): ${creator.public.content_style}`;
+  const client = createClient(env.OPENAI_API_KEY!, env.OPENAI_MODEL || undefined);
+  const r = await runNegotiationLLM({
+    brand, creator, brandNarrative, creatorNarrative, now, client,
+    onTurn: opts.onTurn, log: opts.log ?? ((l) => console.log(`[negotiate] ${l}`)),
+  });
+  return { ...r, mode: 'llm' };
+}
+// -------------------------------------------------------------------------------------------------
+
+export type CreateDealArgs = {
+  dealId: string;
+  campaignId: string;
+  brandSlug: string;
+  creatorSlug: string;
+  /** Raha's scraper output. Used only when creatorSlug has no bundled profile. */
+  creator?: Creator;
+};
+
+/** Stored deal: the shared Deal contract plus fields only this side needs. */
+export type DealRecord = Deal & { walkReason?: string; stripe?: Deal['stripe'] & { chargeId?: string } };
+export type DealWithTurns = DealRecord & { turns: Turn[] };
+export type VerifyOutcome = { verified: boolean; deal: DealRecord; verify: VerifyResult };
+
+type MessageRow = {
+  seq: number; round: number; from_side: string; ts: string; offer_json: string;
+  message: string; value_brand: number; value_creator: number; status: string;
+};
+
+export class DealDO extends DurableObject<Env> {
+  private sql: SqlStorage;
+  /** True while a background negotiation is in flight in this DO instance. */
+  private running = false;
+
+  constructor(ctx: DurableObjectState, env: Env) {
+    super(ctx, env);
+    this.sql = ctx.storage.sql;
+    this.sql.exec(`CREATE TABLE IF NOT EXISTS deal (id INTEGER PRIMARY KEY CHECK (id = 1), json TEXT NOT NULL)`);
+    this.sql.exec(`CREATE TABLE IF NOT EXISTS messages (
+      seq INTEGER PRIMARY KEY,
+      round INTEGER NOT NULL,
+      from_side TEXT NOT NULL,
+      ts TEXT NOT NULL,
+      offer_json TEXT NOT NULL,
+      message TEXT NOT NULL,
+      value_brand REAL NOT NULL,
+      value_creator REAL NOT NULL,
+      status TEXT NOT NULL
+    )`);
+  }
+
+  // ---- create: negotiate now, reserve budget -------------------------------------------------
+
+  async create(args: CreateDealArgs): Promise<DealRecord> {
+    if (this.load()) fail(409, `deal ${args.dealId} already exists`);
+    const brand = BRANDS[args.brandSlug];
+    if (!brand) fail(404, `deal ${args.dealId}: unknown brand ${args.brandSlug}`);
+    const creator = CREATORS[args.creatorSlug] ?? (args.creator ? profileFromScraped(args.creatorSlug, args.creator) : null);
+    if (!creator) fail(404, `deal ${args.dealId}: unknown creator ${args.creatorSlug} (pass a Creator object to negotiate with a scraped profile)`);
+
+    const campaign = this.campaign(args.campaignId);
+    const snapshot = await campaign.get(); // 404 if the campaign was never created
+
+    const now = new Date();
+    const ts = now.toISOString();
+    const deal: DealRecord = {
+      dealId: args.dealId,
+      campaignId: args.campaignId,
+      brandSlug: args.brandSlug,
+      creatorSlug: args.creatorSlug,
+      status: 'negotiating',
+      price: 0,
+      budgetLeft: snapshot.budgetLeft,
+      createdAt: ts,
+      updatedAt: ts,
+    };
+    this.save(deal);
+
+    // Negotiate in the background so the transcript fills in turn by turn (poll GET /deals/:id).
+    const run = negotiate(this.env, args, brand, creator, now, { onTurn: (t) => this.insertTurn(t) })
+      .then((result) => this.finalize(result))
+      .catch((err) => {
+        console.error(`deal ${args.dealId}: negotiation failed: ${err instanceof Error ? err.message : String(err)}`);
+        const d = this.must();
+        d.status = 'walked_away';
+        d.walkReason = `error: ${err instanceof Error ? err.message : String(err)}`;
+        d.updatedAt = new Date().toISOString();
+        this.save(d);
+      });
+    this.running = true;
+    this.ctx.waitUntil(run.finally(() => { this.running = false; }));
+    if (!this.env.OPENAI_API_KEY || this.env.LLM_MODE === 'off') await run; // engine mode is instant; keep the old synchronous contract
+    return this.must();
+  }
+
+  /** negotiating -> agreed (budget reserved) | walked_away. */
+  private async finalize(result: NegotiationResult): Promise<void> {
+    const deal = this.must();
+    const campaign = this.campaign(deal.campaignId);
+    if (result.outcome === 'agreed' && result.acceptedOffer) {
+      const price = result.acceptedOffer.package.cash_usd;
+      deal.acceptedOffer = result.acceptedOffer;
+      const r = await campaign.reserve(deal.dealId, deal.creatorSlug, price);
+      if (r.ok) {
+        deal.status = 'agreed';
+        deal.price = price;
+        deal.budgetLeft = r.budgetLeft;
+      } else {
+        deal.status = 'walked_away';
+        deal.walkReason = 'budget';
+        deal.budgetLeft = (await campaign.note(deal.dealId, deal.creatorSlug, 'walked_away')).budgetLeft;
+      }
+    } else {
+      deal.status = 'walked_away';
+      deal.walkReason = 'negotiation';
+      deal.budgetLeft = (await campaign.note(deal.dealId, deal.creatorSlug, 'walked_away')).budgetLeft;
+    }
+    deal.updatedAt = new Date().toISOString();
+    this.save(deal);
+  }
+
+  // ---- reads -----------------------------------------------------------------------------------
+
+  get(): DealWithTurns {
+    const deal = this.recover(this.must());
+    return { ...deal, turns: this.turns() };
+  }
+
+  transcript(): { dealId: string; turns: Turn[] } {
+    const deal = this.recover(this.must());
+    return { dealId: deal.dealId, turns: this.turns() };
+  }
+
+  // ---- money -----------------------------------------------------------------------------------
+
+  /** agreed -> held. Creates the creator's Connect account (once) and charges the brand. */
+  async fund(): Promise<DealRecord> {
+    this.require(this.must(), 'agreed');
+    this.stripe(); // 503 before we enter the block
+    return this.guarded(async () => {
+      const deal = this.must();
+      this.require(deal, 'agreed');
+      const stripe = this.stripe();
+      const creatorName = CREATORS[deal.creatorSlug]?.public.name ?? deal.creatorSlug;
+      const accountId = await ensureCreatorAccount(stripe, {
+        slug: deal.creatorSlug,
+        name: creatorName,
+        email: `${deal.creatorSlug}@example.com`,
+      });
+      const { paymentIntentId, chargeId } = await chargeBrand(stripe, {
+        dealId: deal.dealId,
+        amountUsd: deal.price,
+        description: `Creator deal ${deal.dealId}: ${deal.brandSlug} x ${deal.creatorSlug}`,
+      });
+      deal.stripe = { ...deal.stripe, accountId, paymentIntentId, chargeId };
+      deal.status = 'held';
+      deal.updatedAt = new Date().toISOString();
+      this.save(deal);
+      await this.ledger(deal, (c) => c.note(deal.dealId, deal.creatorSlug, 'held'));
+      return deal;
+    });
+  }
+
+  /** held -> paid_out when the post checks out; otherwise stays held and reports why. */
+  async verify(args: { url: string; mock?: boolean }): Promise<VerifyOutcome> {
+    const before = this.must();
+    this.require(before, 'held');
+    const brand = BRANDS[before.brandSlug];
+    const useMock = args.mock === true || this.env.VERIFY_MODE === 'mock';
+    const result = useMock
+      ? mockVerify(args.url)
+      : await verifyPostLive({ url: args.url, requiredTag: brand ? brandHandle(brand) : undefined });
+
+    if (!result.verified) {
+      before.postUrl = args.url;
+      before.updatedAt = new Date().toISOString();
+      this.save(before);
+      return { verified: false, deal: before, verify: result };
+    }
+
+    return this.guarded(async () => {
+      const deal = this.must();
+      this.require(deal, 'held'); // re-check: a concurrent expire may have won
+      const stripe = this.stripe();
+      const accountId = deal.stripe?.accountId;
+      const chargeId = deal.stripe?.chargeId;
+      if (!accountId || !chargeId) fail(500, `deal ${deal.dealId}: held without stripe accountId/chargeId`);
+      const feePct = Number(this.env.PLATFORM_FEE_PCT ?? '10');
+      const { transferId } = await payoutCreator(stripe, {
+        dealId: deal.dealId, accountId, amountUsd: deal.price, feePct, chargeId,
+      });
+      // Money moved: persist the status first, ledger second (ledger is bookkeeping, not truth).
+      deal.stripe = { ...deal.stripe, transferId };
+      deal.postUrl = args.url;
+      deal.status = 'paid_out';
+      deal.updatedAt = new Date().toISOString();
+      this.save(deal);
+      await this.ledger(deal, async (c) => { deal.budgetLeft = (await c.commit(deal.dealId)).budgetLeft; this.save(deal); });
+      return { verified: true, deal, verify: result };
+    });
+  }
+
+  /** held -> refunded. Brand gets the money back, budget returns to the campaign. */
+  async expire(): Promise<DealRecord> {
+    this.require(this.must(), 'held');
+    this.stripe();
+    return this.guarded(async () => {
+      const deal = this.must();
+      this.require(deal, 'held');
+      const stripe = this.stripe();
+      const paymentIntentId = deal.stripe?.paymentIntentId;
+      if (!paymentIntentId) fail(500, `deal ${deal.dealId}: held without stripe paymentIntentId`);
+      const { refundId } = await refundBrand(stripe, { dealId: deal.dealId, paymentIntentId });
+      deal.stripe = { ...deal.stripe, refundId };
+      deal.status = 'refunded';
+      deal.updatedAt = new Date().toISOString();
+      this.save(deal);
+      await this.ledger(deal, async (c) => { deal.budgetLeft = (await c.release(deal.dealId)).budgetLeft; this.save(deal); });
+      return deal;
+    });
+  }
+
+  // ---- internals -------------------------------------------------------------------------------
+
+  /** A DO restart (wrangler reload, eviction) drops the waitUntil promise; do not leave the deal
+   *  in `negotiating` forever. */
+  private recover(deal: DealRecord): DealRecord {
+    if (deal.status === 'negotiating' && !this.running) {
+      deal.status = 'walked_away';
+      deal.walkReason = 'interrupted';
+      deal.updatedAt = new Date().toISOString();
+      this.save(deal);
+    }
+    return deal;
+  }
+
+  /** blockConcurrencyWhile resets the whole DO if the callback throws (and kills the background
+   *  negotiation with it), so errors are carried out as values and rethrown outside the block. */
+  private async guarded<T>(fn: () => Promise<T>): Promise<T> {
+    const r = await this.ctx.blockConcurrencyWhile(async (): Promise<{ ok: T } | { err: unknown }> => {
+      try { return { ok: await fn() }; } catch (err) { return { err }; }
+    });
+    if ('err' in r) throw r.err;
+    return r.ok;
+  }
+
+  /** Ledger updates are best-effort after money has moved; a failure is logged, not fatal. */
+  private async ledger(deal: DealRecord, fn: (c: ReturnType<DealDO['campaign']>) => Promise<unknown>): Promise<void> {
+    try { await fn(this.campaign(deal.campaignId)); }
+    catch (e) { console.error(`deal ${deal.dealId}: ledger update failed: ${e instanceof Error ? e.message : String(e)}`); }
+  }
+
+  // ---- internals -------------------------------------------------------------------------------
+
+  private stripe() {
+    const key = this.env.STRIPE_SECRET_KEY;
+    if (!key) fail(503, 'stripe not configured');
+    return makeStripe(key);
+  }
+
+  private campaign(campaignId: string) {
+    return this.env.CAMPAIGN.get(this.env.CAMPAIGN.idFromName(campaignId));
+  }
+
+  private require(deal: DealRecord, status: DealStatus): void {
+    if (deal.status !== status) fail(409, `deal ${deal.dealId} is ${deal.status}, expected ${status}`);
+  }
+
+  private load(): DealRecord | null {
+    const row = this.sql.exec<{ json: string }>('SELECT json FROM deal WHERE id = 1').toArray()[0];
+    return row ? (JSON.parse(row.json) as DealRecord) : null;
+  }
+
+  private must(): DealRecord {
+    const deal = this.load();
+    if (!deal) fail(404, 'deal not found');
+    return deal;
+  }
+
+  private save(deal: DealRecord): void {
+    deal.updatedAt = new Date().toISOString();
+    this.sql.exec(
+      `INSERT INTO deal (id, json) VALUES (1, ?) ON CONFLICT(id) DO UPDATE SET json = excluded.json`,
+      JSON.stringify(deal),
+    );
+  }
+
+  private insertTurn(t: Turn): void {
+    const { ts, value_for_brand_usd, value_for_creator_usd, ...offer } = t;
+    this.sql.exec(
+      `INSERT INTO messages (round, from_side, ts, offer_json, message, value_brand, value_creator, status)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      offer.round, offer.from, ts, JSON.stringify(offer), offer.message, value_for_brand_usd, value_for_creator_usd, offer.status,
+    );
+  }
+
+  private turns(): Turn[] {
+    return this.sql
+      .exec<MessageRow>('SELECT * FROM messages ORDER BY seq')
+      .toArray()
+      .map((r) => ({
+        ...(JSON.parse(r.offer_json) as Offer),
+        ts: r.ts,
+        value_for_brand_usd: r.value_brand,
+        value_for_creator_usd: r.value_creator,
+      }));
+  }
+}
+
+/** "@marinelayer" from the brand's public name. verify.ts also matches the bare form. */
+export function brandHandle(brand: BrandProfile): string {
+  return '@' + brand.public.name.toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+
+/** Minimal CreatorProfile from Raha's scraper output, priced around fairPrice. */
+export function profileFromScraped(slug: string, c: Creator): CreatorProfile {
+  const fair = Math.max(1, Math.round(c.fairPrice));
+  const floor = Math.round(fair * 0.75);
+  const rate = (k: number) => Math.round(fair * k);
+  return {
+    public: {
+      name: slug,
+      handle: c.handle,
+      platforms: [{ name: c.platform, followers: c.followers, avg_views: c.avgViews30d, engagement_pct: c.engagement * 100 }],
+      niche: 'unknown (scraped profile)',
+      audience: { age: 'unknown', gender_split: 'unknown', top_geos: [] },
+      rate_card: { reel: rate(1), story: rate(0.16), post: rate(0.43), bundle_reel_3_stories: rate(1.4) },
+      content_style: 'unknown',
+      past_brand_deals: [],
+      availability: { next_open_slot: new Date(Date.now() + 14 * 86_400_000).toISOString().slice(0, 10), slots_per_month: 3, min_lead_time_days: 7 },
+      barter_openness: { product: true, affiliate: true, store_credit: false, custom: [] },
+    },
+    private: {
+      floor_usd: { reel: floor, story: Math.round(floor * 0.16), post: Math.round(floor * 0.43), bundle_reel_3_stories: Math.round(floor * 1.4) },
+      valuation: {
+        product_counted_at_pct_of_retail: 50,
+        affiliate_expected_sales_usd: Math.round(fair * 0.6),
+        affiliate_min_pct: 15,
+        affiliate_min_cookie_days: 30,
+        store_credit_counted_at_pct: 50,
+        custom_value_usd: {},
+      },
+      premiums: { paid_ads_30d_pct: 30, paid_ads_90d_pct: 60, perpetual_pct: 120, exclusivity_per_30d_pct: 15, rush_under_7d_pct: 25 },
+      concession_rules: { first_ask_pct_over_floor: 35, step_pct: 10, max_rounds: 6 },
+      stop_brands: [],
+      dealbreakers: [],
+      soft_preferences: [],
+    },
+  };
+}

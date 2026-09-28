@@ -1,0 +1,90 @@
+{
+  "public": {
+    "name": "Marine Layer",
+    "site": "https://www.marinelayer.com",
+    "category": "casual apparel",
+    "hq": "San Francisco, CA",
+    "campaign": {
+      "name": "Fall 2026 Re-Spun Launch",
+      "goal": "Reach 18-34 in SF, LA, NYC and Austin with the Re-Spun story (softest tee, made from old tees). Target CPM <= $25 on delivered views, plus tracked affiliate sales and repostable organic clips.",
+      "window": { "start": "2026-10-15", "end": "2026-11-30" },
+      "wanted_deliverables": [
+        { "type": "reel", "qty": 1, "notes": "Product on screen >= 8 seconds, Re-Spun said or shown once" },
+        { "type": "story", "qty": 3, "notes": "Link sticker with campaign link or code" },
+        { "type": "tiktok", "qty": 1, "notes": "Optional add-on, cut of the Reel is fine" }
+      ],
+      "target_audience": "18-34, US, primarily San Francisco, Los Angeles, New York City, Austin"
+    },
+    "brand_voice": "Warm, a little goofy, never salesy. Short sentences. Obsessed with softness. California as a mood, not a postcard. Everyday weekend clothes worn on weekdays.",
+    "content_guidelines": [
+      "Everyday wear in real places (coffee walk, ferry, Sunday cook); no studio sets",
+      "Creator uses their own words about how the fabric feels; no script read",
+      "Re-Spun angle is one casual line, not a lecture on textile waste",
+      "Product visible at least 8 seconds in the Reel, worn not folded",
+      "Tag @marinelayer, use campaign link or code, FTC disclosure (#ad or paid partnership label)",
+      "Natural light preferred; music from the platform's licensed library only"
+    ],
+    "no_gos": [
+      "No comparisons to fast-fashion brands",
+      "No discount codes above 20%",
+      "No political content in the deliverable or caption",
+      "No competitor apparel visible in the same Reel",
+      "No perpetual usage rights; 90-day paid ads is the ceiling"
+    ],
+    "barter_menu": {
+      "product": [
+        { "sku": "Signature Crew Tee", "retail_value_usd": 54, "wholesale_cost_usd": 21.6 },
+        { "sku": "Re-Spun Signature Crew", "retail_value_usd": 58, "wholesale_cost_usd": 23.2 },
+        { "sku": "Cloud 9 Fleece Relaxed Hoodie", "retail_value_usd": 118, "wholesale_cost_usd": 47.2 },
+        { "sku": "Corbet Quilted Hoodie", "retail_value_usd": 128, "wholesale_cost_usd": 51.2 },
+        { "sku": "Saturday Twill Chino - Slim Straight", "retail_value_usd": 138, "wholesale_cost_usd": 55.2 },
+        { "sku": "Corbet Quilted Bomber", "retail_value_usd": 148, "wholesale_cost_usd": 59.2 }
+      ],
+      "affiliate_pct_range": [10, 20],
+      "store_credit": true,
+      "custom": [
+        "Invite to SF HQ Re-Spun launch event (Oct 2026)",
+        "Feature on @marinelayer Instagram (feed or Stories repost)",
+        "Early access to new drops for the season"
+      ]
+    }
+  },
+  "private": {
+    "budget_total_usd": 50000,
+    "budget_per_creator_max_usd": 6500,
+    "target_cpm_usd": 25,
+    "valuation": {
+      "product_counted_at": "wholesale_cost",
+      "affiliate_expected_sales_usd_per_creator": 4500,
+      "store_credit_counted_at_pct": 45,
+      "custom_counted_at_usd": {
+        "Invite to SF HQ Re-Spun launch event (Oct 2026)": 150,
+        "Feature on @marinelayer Instagram (feed or Stories repost)": 100,
+        "Early access to new drops for the season": 25
+      }
+    },
+    "concession_rules": {
+      "first_offer_pct_of_max": 55,
+      "step_pct": 12,
+      "max_rounds": 6,
+      "notes": "Open at 55% of per-creator max as a product+cash mix. Each round add up to 12% of max, preferring to add product, store credit or affiliate points before cash. Walk after round 6."
+    },
+    "priorities": [
+      "Authentic everyday wear, creator's own words",
+      "SF / California identity visible in the content",
+      "Product on screen >= 8 seconds in the Reel",
+      "Affiliate link accepted (performance-based, self-funding)",
+      "Product-heavy mixes over pure cash (product costs ~40% of retail)",
+      "30-day paid ads rights if cheap; not required"
+    ],
+    "walk_away_if": [
+      "All-in cost (cash + wholesale product + credit at 45%) exceeds 6500 USD",
+      "Implied CPM on creator's stated average views exceeds 45 USD after round 4",
+      "Creator refuses any affiliate component and demands cash-only above 4000 USD",
+      "Creator asks for perpetual usage payment or refuses to disclose per FTC",
+      "Creator insists on a discount code above 20% or on fast-fashion comparison content",
+      "Creator has visible competitor apparel deals scheduled inside the campaign window without category exclusivity",
+      "No agreement after 6 rounds"
+    ]
+  }
+}

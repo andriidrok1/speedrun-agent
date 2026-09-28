@@ -1,0 +1,106 @@
+{
+  "public": {
+    "name": "Maya Ortiz",
+    "handle": "@maya.wears",
+    "age": 27,
+    "location": "Oakland, CA",
+    "platforms": [
+      { "name": "instagram", "followers": 184000, "avg_views": 95000, "engagement_pct": 4.1 },
+      { "name": "tiktok", "followers": 310000, "avg_views": 140000, "engagement_pct": 5.2 },
+      { "name": "youtube", "followers": 22000, "avg_views": 18000, "engagement_pct": 3.4 }
+    ],
+    "niche": "everyday fits + thrift + Bay Area life (women's casual fashion)",
+    "audience": {
+      "age": "24-34 core (72% of audience 18-34)",
+      "gender_split": "68% women / 30% men / 2% other",
+      "top_geos": ["SF Bay Area", "Los Angeles", "New York City", "Seattle"]
+    },
+    "rate_card": {
+      "reel": 2800,
+      "story": 450,
+      "post": 1200,
+      "bundle_reel_3_stories": 3900
+    },
+    "content_style": "Handheld one-take talking-to-camera, natural light, names prices and where things came from, no scripts, no hauls. Sponsored content stays under 30% of feed.",
+    "past_brand_deals": [
+      { "brand": "Everlane", "year": 2025, "deliverables": "2 reels", "terms": "paid, organic only", "outcome": "210k views on reel 1, rebooked 4 months later" },
+      { "brand": "Levi's", "year": 2025, "deliverables": "1 reel", "terms": "paid + paid ads 30d", "outcome": "delivered; ad cut removed her context, comments pushed back" },
+      { "brand": "Allbirds", "year": 2025, "deliverables": "affiliate link in bio + 1 tiktok", "terms": "affiliate 15%, 30-day cookie", "outcome": "approx $1,900 tracked sales in 60 days" },
+      { "brand": "Red Bay Coffee (Oakland roaster)", "year": 2026, "deliverables": "1 reel + 2 stories", "terms": "barter, product + $1,200 cash", "outcome": "ongoing relationship" }
+    ],
+    "availability": {
+      "next_open_slot": "2026-10-20",
+      "slots_per_month": 3,
+      "min_lead_time_days": 7,
+      "unsponsored_feed_share_pct_min": 70
+    },
+    "barter_openness": {
+      "product": true,
+      "affiliate": true,
+      "store_credit": true,
+      "custom": [
+        "event invite she can film",
+        "co-designed or co-branded piece",
+        "feature on brand channels",
+        "early access to drops"
+      ]
+    }
+  },
+  "private": {
+    "floor_usd": {
+      "reel": 2100,
+      "story": 300,
+      "post": 900,
+      "bundle_reel_3_stories": 3000
+    },
+    "valuation": {
+      "product_counted_at_pct_of_retail": 50,
+      "product_only_if_she_would_wear_it": true,
+      "affiliate_expected_sales_usd": 1800,
+      "affiliate_min_pct": 15,
+      "affiliate_min_cookie_days": 30,
+      "store_credit_counted_at_pct": 60,
+      "custom_value_usd": {
+        "event invite she can film": 500,
+        "co-designed or co-branded piece": 500,
+        "feature on brand channels": 500,
+        "early access to drops": 100
+      }
+    },
+    "premiums": {
+      "paid_ads_30d_pct": 30,
+      "paid_ads_90d_pct": 60,
+      "perpetual_pct": 120,
+      "exclusivity_per_30d_pct": 15,
+      "rush_under_7d_pct": 25
+    },
+    "concession_rules": {
+      "first_ask_pct_over_floor": 35,
+      "step_pct": 10,
+      "max_rounds": 6,
+      "notes": "Step down in even increments; trade usage rights and exclusivity for cash before touching the base fee; never bluff a competing offer."
+    },
+    "stop_brands": [
+      "Shein",
+      "Temu",
+      "Fashion Nova",
+      "any brand with a public labor scandal"
+    ],
+    "dealbreakers": [
+      "scripted lines required word-for-word",
+      "more than 2 rounds of revisions",
+      "exclusivity longer than 60 days",
+      "deliverables due in under 5 days",
+      "sponsored share of feed would exceed 30%"
+    ],
+    "soft_preferences": [
+      "creative control over framing and wording",
+      "one-take authenticity, no heavy edits",
+      "keeps the product",
+      "long-term relationship over one-off",
+      "SF Bay Area based brands",
+      "cash + product mixes over pure cash",
+      "brand reshares her content on its own channels"
+    ]
+  }
+}
