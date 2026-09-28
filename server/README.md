@@ -141,3 +141,4 @@ profile; a minimal `CreatorProfile` is derived around `fairPrice` (floor at 75%)
 
 Every deal caps the brand at 1.3x the creator's own bundle rate (`src/pricing.ts`, `brandForCreator`),
 so offers follow real reach: a 600-view account no longer gets the same cash as a 60k-view one.
+
