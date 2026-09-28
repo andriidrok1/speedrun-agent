@@ -13,4 +13,4 @@ WORKDIR /app/server
 ENV NODE_ENV=production WRANGLER_SEND_METRICS=false CI=true
 EXPOSE 8787
 # Secrets arrive as Railway env vars; wrangler dev only reads .dev.vars, so write it at boot.
-CMD sh -c 'env | grep -E "^(STRIPE_SECRET_KEY|OPENAI_API_KEY|OPENAI_MODEL|LLM_MODE|VERIFY_MODE|PLATFORM_FEE_PCT|STRIPE_WEBHOOK_SECRET|HOLD_DEADLINE_SECONDS|BRAINBASE_API_KEY|BRAINBASE_AGENT_ID|MCP_TOKEN)=" > .dev.vars; exec npx wrangler dev --ip 0.0.0.0 --port ${PORT:-8787} --persist-to /data/state --log-level info'
+CMD sh -c 'env | grep -E "^(STRIPE_SECRET_KEY|OPENAI_API_KEY|OPENAI_MODEL|LLM_MODE|VERIFY_MODE|PLATFORM_FEE_PCT|STRIPE_WEBHOOK_SECRET|HOLD_DEADLINE_SECONDS|BRAINBASE_API_KEY|BRAINBASE_AGENT_ID|MCP_TOKEN|AUTO_PAYOUT)=" > .dev.vars; exec npx wrangler dev --ip 0.0.0.0 --port ${PORT:-8787} --persist-to /data/state --log-level info'

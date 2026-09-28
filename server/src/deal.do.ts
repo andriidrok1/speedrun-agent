@@ -2,7 +2,7 @@
 // transition that moves money (fund / verify+payout / expire+refund) so state and Stripe never race.
 import { DurableObject } from 'cloudflare:workers';
 import type { Env } from './index';
-import type { BrandProfile, Creator, CreatorProfile, Deal, DealStatus, Offer, Turn } from './types';
+import { emptyPackage, type BrandProfile, type Creator, type CreatorProfile, type Deal, type DealStatus, type Offer, type Turn } from './types';
 import { BRANDS, CREATORS, BRAND_NARRATIVES, CREATOR_NARRATIVES } from './profiles.bundle';
 import { runNegotiation, type NegotiationResult } from './engine/index';
 import { runNegotiationLLM } from './agents/negotiate';
@@ -68,6 +68,15 @@ export type DealRecord = Deal & {
   creatorProfile?: CreatorProfile;
 };
 export type DealWithTurns = DealRecord & { turns: Turn[] };
+export type ApplySelectionArgs = {
+  selection: 'selected' | 'not_selected';
+  ranks: { brand: number; creator: number };
+  explain: string;
+  brandName: string;
+  creatorName: string;
+};
+/** How the brand's selection turn starts: lets applySelection detect a second run. */
+const SELECTION_RE = /^(Good news: after looking at every offer|Thank you for negotiating with us\. We reviewed all offers)/;
 export type VerifyOutcome = { verified: boolean; deal: DealRecord; verify: VerifyResult };
 
 type MessageRow = {
@@ -209,6 +218,90 @@ export class DealDO extends DurableObject<Env> {
     return deal;
   }
 
+  /** Platform selection lands in the chat: both agents say the outcome, and a selected deal is
+   *  approved on both sides (so fund() is unlocked) and, with Stripe configured, paid right away. */
+  async applySelection(args: ApplySelectionArgs): Promise<DealWithTurns> {
+    const deal = this.must();
+    if (deal.status !== 'agreed') return this.get();
+    const turns = this.turns();
+    const already = deal.selection === args.selection && turns.some((t) => SELECTION_RE.test(t.message));
+    if (already) return this.get();
+    deal.selection = args.selection;
+    deal.ranks = args.ranks;
+    const selected = args.selection === 'selected';
+    if (selected) deal.approvals = { brand: true, creator: true };
+    this.save(deal);
+
+    const accepted = deal.acceptedOffer ?? turns[turns.length - 1];
+    const cash = accepted?.package.cash_usd ?? deal.price;
+    const brandMsg = selected
+      ? `Good news: after looking at every offer on the table for this campaign, yours ranked #${args.ranks.brand}. We'd like to go ahead at $${cash} cash plus the package we agreed. Confirm and we'll fund it.`
+      : `Thank you for negotiating with us. We reviewed all offers for this campaign and went with others this time (${args.explain || 'not selected'}). Door stays open for the next drop.`;
+    const creatorMsg = selected
+      ? `Yes. I compared the offers I have right now and this one is my #${args.ranks.creator}, so let's do it. Send the brief.`
+      : args.explain.startsWith('rejected by creator')
+        ? `I've taken a better fit for this month, so I'll pass this time. Thanks for the offer.`
+        : `Understood, thanks for letting me know.`;
+    this.systemTurn('brand', selected ? 'accept' : 'reject', brandMsg);
+    this.systemTurn('creator', selected ? 'accept' : 'reject', creatorMsg);
+
+    if (selected && this.env.STRIPE_SECRET_KEY) await this.autoPay(args.creatorName);
+    return this.get();
+  }
+
+  /** Selected + both approved: charge the brand now; with AUTO_PAYOUT=mock also verify + pay out.
+   *  Money errors never undo the selection: they land in the chat and the human can retry fund. */
+  private async autoPay(creatorName: string): Promise<void> {
+    try {
+      const held = await this.fund();
+      this.systemTurn('brand', 'accept', `Payment sent. $${held.price} is now held by Stripe (payment ${held.stripe?.paymentIntentId ?? '?'}) and will be released to ${creatorName} when the post is live.`);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      console.error(`deal ${this.must().dealId}: auto-fund failed: ${msg}`);
+      this.systemTurn('brand', 'accept', `Payment failed: ${msg.replace(/^\[\d{3}\] /, '')}`);
+      return;
+    }
+    if (this.env.AUTO_PAYOUT !== 'mock') return;
+    try {
+      const out = await this.verify({ url: 'https://www.instagram.com/p/demo/', mock: true });
+      if (!out.verified) { this.systemTurn('brand', 'accept', `Payment failed: post not verified (${out.verify.reason ?? 'unknown'})`); return; }
+      const feePct = Number(this.env.PLATFORM_FEE_PCT || '10');
+      const fee = Math.round(out.deal.price * feePct) / 100;
+      const net = Math.round(out.deal.price * 100 - fee * 100) / 100;
+      this.systemTurn('brand', 'accept', `Post verified. $${net} transferred to ${creatorName} (transfer ${out.deal.stripe?.transferId ?? '?'}), platform fee $${fee}.`);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      console.error(`deal ${this.must().dealId}: auto-payout failed: ${msg}`);
+      this.systemTurn('brand', 'accept', `Payment failed: ${msg.replace(/^\[\d{3}\] /, '')}`);
+    }
+  }
+
+  /** A platform-authored transcript turn after the negotiation: terms copied from the accepted offer. */
+  private systemTurn(from: Turn['from'], status: Turn['status'], message: string): void {
+    const turns = this.turns();
+    const last = turns[turns.length - 1];
+    const deal = this.must();
+    const base: Offer = deal.acceptedOffer ?? last ?? {
+      round: 0, from, package: emptyPackage(), deliverables: [], usage_rights: 'organic_only',
+      exclusivity: { category: '', days: 0 }, deadline: '', message: '', status,
+    };
+    const acceptTurn = [...turns].reverse().find((t) => t.status === 'accept') ?? last;
+    this.insertTurn({
+      round: (last?.round ?? 0) + 1,
+      from,
+      package: base.package,
+      deliverables: base.deliverables,
+      usage_rights: base.usage_rights,
+      exclusivity: base.exclusivity,
+      deadline: base.deadline,
+      message,
+      status,
+      ts: new Date().toISOString(),
+      value_for_brand_usd: acceptTurn?.value_for_brand_usd ?? 0,
+      value_for_creator_usd: acceptTurn?.value_for_creator_usd ?? 0,
+    });
+  }
+
   /** Everything the scorers need that lives in this DO: the deal and the creator profile it was
    *  negotiated with (bundled, or the onboarded/derived one persisted at create time). */
   scoreInputs(): { deal: DealRecord; brandSlug: string; creatorSlug: string; creatorProfile: CreatorProfile } {
@@ -282,7 +375,7 @@ export class DealDO extends DurableObject<Env> {
     this.require(before, 'held');
     const brand = BRANDS[before.brandSlug];
     // Mock verification releases real (test) money, so only the server can turn it on.
-    const mockAllowed = this.env.VERIFY_MODE === 'mock';
+    const mockAllowed = this.env.VERIFY_MODE === 'mock' || this.env.AUTO_PAYOUT === 'mock';
     if (args.mock === true && !mockAllowed) fail(403, 'mock verify is off. Set VERIFY_MODE=mock in server/.dev.vars for local demos');
     const useMock = mockAllowed && args.mock !== false;
     const result = useMock
