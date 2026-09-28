@@ -42,6 +42,9 @@ function statusOf(i: BrandInboxItem): { label: string; color: Color } {
 
 const COMMITTED: DealStatus[] = ["agreed", "held", "paid_out"];
 const slugOf = (handle: string) => handle.replace("@", "").toLowerCase();
+/** Extra creators the agent negotiates with beyond the headcount, so "pick the best" has something to pick from. */
+const OUTREACH_POOL = 5;
+
 /** Negotiating or holding a deal: these count against the brand's headcount. */
 const isLive = (i: BrandInboxItem) => !i.walkReason && (i.status === "negotiating" || COMMITTED.includes(i.status));
 /** Step 2 already ran on the server (maybe in another tab). */
@@ -96,6 +99,9 @@ function BrandInboxView({ form, creators, autoLaunch }: { form: BrandForm; creat
   const [error, setError] = useState<string | null>(null);
   const autoRan = useRef(false);
   const headcount = Math.max(1, form.creators || 1);
+  /** How many creators the agent talks to at once: headcount plus a pool of 5, so the pick is a real choice.
+   *  The server's campaign headcount decides how many of them get paid. */
+  const outreach = headcount + OUTREACH_POOL;
   // One outreach at a time (launch or refill), so a poll never starts the same creator twice.
   const reaching = useRef(false);
   const answered = useRef(new Set<string>()); // walked-away deals already replaced
@@ -143,15 +149,15 @@ function BrandInboxView({ form, creators, autoLaunch }: { form: BrandForm; creat
     };
   }, [refresh]);
 
-  /** The next best creators nobody has talked to yet, enough to bring live conversations back up to headcount. */
+  /** The next best creators nobody has talked to yet, enough to bring live conversations back up to the outreach pool. */
   const nextPicks = useCallback(
     (deals: BrandInboxItem[]) => {
-      const need = headcount - deals.filter(isLive).length;
+      const need = outreach - deals.filter(isLive).length;
       if (need <= 0) return [];
       const skip = new Set([...deals.map((d) => d.creatorSlug.toLowerCase()), ...failedSlugs.current]);
       return ranked(creators, form, skip).slice(0, need);
     },
-    [creators, form, headcount],
+    [creators, form, outreach],
   );
 
   const reachOut = useCallback(
@@ -175,8 +181,8 @@ function BrandInboxView({ form, creators, autoLaunch }: { form: BrandForm; creat
       const { deals } = await campaignDeals(camp.campaignId);
       for (const d of deals) if (d.status === "walked_away") answered.current.add(d.dealId);
       const live = deals.filter(isLive).length;
-      if (live >= headcount) {
-        setNote(`Your agent is already talking to ${live} creators, which is your headcount of ${headcount}.`);
+      if (live >= outreach) {
+        setNote(`Your agent is already talking to ${live} creators (headcount ${headcount} plus a pool of ${OUTREACH_POOL}).`);
         return;
       }
       const picks = nextPicks(deals);
@@ -198,7 +204,7 @@ function BrandInboxView({ form, creators, autoLaunch }: { form: BrandForm; creat
       setLaunching(false);
       reaching.current = false;
     }
-  }, [campaign, headcount, nextPicks, reachOut, refresh]);
+  }, [campaign, headcount, outreach, nextPicks, reachOut, refresh]);
 
   useEffect(() => {
     if (!autoLaunch || !campaign || autoRan.current) return;
@@ -223,7 +229,7 @@ function BrandInboxView({ form, creators, autoLaunch }: { form: BrandForm; creat
     setTimeout(async () => {
       try {
         if (!picks.length) {
-          if (items.filter(isLive).length < headcount) setNote(`${who}. No more creators fit this budget, so your agent works with the deals it has.`);
+          if (items.filter(isLive).length < outreach) setNote(`${who}. No more creators fit this budget, so your agent works with the deals it has.`);
           return;
         }
         const names = picks.map((p) => `@${slugOf(p.handle)}`).join(", ");
@@ -235,7 +241,7 @@ function BrandInboxView({ form, creators, autoLaunch }: { form: BrandForm; creat
         reaching.current = false;
       }
     }, 0);
-  }, [campaign, items, alreadyPicked, headcount, nextPicks, reachOut, refresh]);
+  }, [campaign, items, alreadyPicked, headcount, outreach, nextPicks, reachOut, refresh]);
 
   // Step 2: once every conversation has settled, the agent picks the best deals and pays.
   const progress = useMemo<StepTwoProgress>(() => {
