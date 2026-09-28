@@ -139,7 +139,7 @@ function OfferBubble({ from, amount, message, round, fair }: { from: "brand" | "
         <Speaker from={from} />
         <span className="text-xs text-quaternary">Round {round}</span>
       </div>
-      <div className={cx("space-y-1.5 rounded-xl px-4 py-3", mine ? "rounded-tr-sm bg-primary-solid" : "rounded-tl-sm bg-secondary")}>
+      <div className={cx("space-y-1.5 rounded-xl px-4 py-3", mine ? "rounded-tr-sm bg-brand-solid" : "rounded-tl-sm bg-secondary")}>
         <div className="flex items-center gap-2">
           <span className={cx("text-lg font-semibold tabular-nums", mine ? "text-primary_on-brand" : "text-primary")}>{fmtUsd(amount)}</span>
           <span className={cx("text-xs font-medium tabular-nums", mine ? "text-tertiary_on-brand" : "text-tertiary")}>
@@ -178,7 +178,7 @@ function Typing({ from }: { from: "brand" | "creator" }) {
   return (
     <div className={cx("flex flex-col gap-1.5", from === "creator" ? "items-end self-end" : "items-start")}>
       <Speaker from={from} />
-      <div className={cx("flex gap-1 rounded-xl px-4 py-3.5", from === "creator" ? "rounded-tr-sm bg-primary-solid" : "rounded-tl-sm bg-secondary")}>
+      <div className={cx("flex gap-1 rounded-xl px-4 py-3.5", from === "creator" ? "rounded-tr-sm bg-brand-solid" : "rounded-tl-sm bg-secondary")}>
         {[0, 150, 300].map((d) => (
           <span
             key={d}
@@ -213,7 +213,7 @@ function PriceCard({ rules, current, agreed }: { rules: DealRules; current?: num
           <div className="absolute -inset-y-1 w-0.5 bg-fg-quaternary" style={{ left: pos(rules.fair) }} />
           {value ? (
             <div
-              className="absolute top-1/2 size-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary-solid ring-2 ring-white transition-all duration-500"
+              className="absolute top-1/2 size-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-brand-solid ring-2 ring-white transition-all duration-500"
               style={{ left: pos(value) }}
             />
           ) : null}
@@ -244,18 +244,18 @@ function Timeline({ status }: { status: DealStatus }) {
           return (
             <li key={s.status} className="relative flex gap-3 pb-5 last:pb-0">
               {i < STEPS.length - 1 && (
-                <span className={cx("absolute top-7 left-3 h-[calc(100%-1.5rem)] w-px -translate-x-1/2", done ? "bg-primary-solid" : "bg-border-secondary")} />
+                <span className={cx("absolute top-7 left-3 h-[calc(100%-1.5rem)] w-px -translate-x-1/2", done ? "bg-brand-solid" : "bg-border-secondary")} />
               )}
               <span
                 className={cx(
                   "relative flex size-6 shrink-0 items-center justify-center rounded-full transition-colors duration-300",
-                  done && "bg-primary-solid",
-                  current && "ring-2 ring-fg-primary ring-inset",
+                  done && "bg-brand-solid",
+                  current && "ring-2 ring-brand ring-inset",
                   !done && !current && "ring-1 ring-secondary ring-inset",
                 )}
               >
                 {done && <Check className="size-3.5 text-white" />}
-                {current && <span className="size-2 rounded-full bg-primary-solid" />}
+                {current && <span className="size-2 rounded-full bg-brand-solid" />}
               </span>
               <div className="-mt-0.5">
                 <p className={cx("text-sm font-semibold", done || current ? "text-primary" : "text-quaternary")}>{s.label}</p>
