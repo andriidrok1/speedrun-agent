@@ -44,6 +44,38 @@ export function creatorForBrand(creator: CreatorProfile, brand: BrandProfile): C
   return { ...creator, private: { ...creator.private, floor_usd: pref.floor_usd } };
 }
 
+// Common ways a brand describes a category a creator refuses.
+const SYNONYMS: Record<string, string[]> = {
+  gambling: ['casino', 'betting', 'bet ', 'poker', 'slots', 'sportsbook', 'lottery'],
+  crypto: ['bitcoin', 'blockchain', 'web3', 'nft', 'token', 'defi', 'coin'],
+  alcohol: ['beer', 'wine', 'liquor', 'vodka', 'whiskey', 'spirits'],
+  vaping: ['vape', 'e-cig', 'nicotine'],
+  tobacco: ['cigarette', 'nicotine'],
+  cheating: ['cheat'],
+};
+const stem = (w: string) => w.slice(0, Math.max(4, w.length - 3));
+
+/**
+ * Should these two even talk? Checks the creator's public and private refusals against how the brand
+ * describes itself. A mismatch means no conversation starts; both sides see the reason instead.
+ */
+export function fitCheck(brand: BrandProfile, creator: CreatorProfile): { fit: boolean; reasons: string[] } {
+  const about = [
+    brand.public.name, brand.public.category, brand.public.site, brand.public.campaign.name,
+    brand.public.campaign.goal, brand.public.campaign.target_audience,
+  ].join(' ').toLowerCase();
+  const refusals = [...(creator.public.refuses ?? []), ...creator.private.stop_brands].map((r) => r.toLowerCase().trim()).filter(Boolean);
+  const reasons: string[] = [];
+  for (const r of new Set(refusals)) {
+    const words = r.split(/[^a-z0-9]+/).filter((w) => w.length >= 4);
+    const terms = [r, ...words.map(stem), ...words.flatMap((w) => SYNONYMS[w] ?? [])];
+    if (terms.some((t) => t.length >= 3 && about.includes(t))) {
+      reasons.push(`${creator.public.handle} does not work with ${r}, and ${brand.public.name} is ${brand.public.category}.`);
+    }
+  }
+  return { fit: reasons.length === 0, reasons };
+}
+
 /** Minimal CreatorProfile from Raha's scraper output, priced around fairPrice. */
 export function profileFromScraped(slug: string, c: Creator): CreatorProfile {
   const fair = Math.max(1, Math.round(c.fairPrice));

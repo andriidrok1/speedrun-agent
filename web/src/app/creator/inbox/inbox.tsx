@@ -166,8 +166,8 @@ function InboxView({ form, creator }: { form: CreatorForm; creator: Creator }) {
                       </span>
                     </span>
                     <span className="flex flex-wrap items-center gap-1.5">
-                      <BadgeWithDot size="sm" color={i.walkReason === "budget_gap" ? "warning" : STATUS[i.status].color}>
-                        {i.walkReason === "budget_gap" ? "Needs your call" : STATUS[i.status].label}
+                      <BadgeWithDot size="sm" color={i.walkReason === "budget_gap" ? "warning" : i.walkReason === "not_a_fit" ? "gray" : STATUS[i.status].color}>
+                        {i.walkReason === "budget_gap" ? "Needs your call" : i.walkReason === "not_a_fit" ? "Not a fit" : STATUS[i.status].label}
                       </BadgeWithDot>
                       {needsYou(i) && <BadgeWithDot size="sm" color="error">Needs your OK</BadgeWithDot>}
                     </span>

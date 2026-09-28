@@ -21,7 +21,7 @@ export function CreatorsTable({ creators }: { creators: Creator[] }) {
         <Table.Header>
           <Table.Head id="creator" label="Creator" isRowHeader className="w-full" />
           <Table.Head id="followers" label="Followers" />
-          <Table.Head id="views" label="Avg views (30d)" />
+          <Table.Head id="views" label="Typical views (30d)" />
           <Table.Head id="engagement" label="Engagement" />
           <Table.Head id="reels" label="Reels (30d)" />
           <Table.Head id="price" label="Fair price" />

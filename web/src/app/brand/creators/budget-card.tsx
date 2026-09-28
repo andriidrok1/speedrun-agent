@@ -1,5 +1,6 @@
 "use client";
 
+import { Rocket02 } from "@untitledui/icons";
 import { ProgressBar } from "@/components/base/progress-indicators/progress-indicators";
 import { Button } from "@/components/base/buttons/button";
 import { useSavedBrand } from "@/lib/onboarding/store";
@@ -25,8 +26,11 @@ export function BudgetCard({ fairTotal, count }: { fairTotal: number; count: num
           <Button href="/brand/setup" size="sm" color="secondary">
             {brand ? "Edit campaign" : "Set up your campaign"}
           </Button>
-          <Button href="/brand/campaign" size="sm" color="primary">
+          <Button href="/brand/campaign" size="sm" color="secondary">
             Run campaign with Brainbase
+          </Button>
+          <Button href="/brand/inbox?launch=1" size="sm" color="primary" iconLeading={Rocket02}>
+            Launch campaign
           </Button>
         </div>
       </div>

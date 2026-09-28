@@ -45,7 +45,7 @@ const STATUS_LABEL: Record<DealStatus, string> = {
 
 const card = "rounded-xl bg-primary shadow-xs ring-1 ring-secondary ring-inset";
 
-type Perspective = "platform" | "creator";
+type Perspective = "platform" | "creator" | "brand";
 
 export function DealView({ creator, existing, perspective = "platform", embedded = false }: { creator: Creator; existing?: ExistingDeal; perspective?: Perspective; embedded?: boolean }) {
   const d = useDeal(creator, existing);

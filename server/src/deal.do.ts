@@ -10,7 +10,7 @@ import { createClient } from './agents/llm';
 import { makeStripe, ensureCreatorAccount, creatorTransfersStatus, chargeBrand, payoutCreator, refundBrand } from './stripe';
 import { verifyPostLive, mockVerify, type VerifyResult } from './verify';
 import { fail } from './campaign.do';
-import { profileFromScraped, brandForCreator, creatorForBrand } from './pricing';
+import { profileFromScraped, brandForCreator, creatorForBrand, fitCheck } from './pricing';
 
 // ---- negotiation strategy -----------------------------------------------------------------------
 // LLM (OpenAI) when OPENAI_API_KEY is set and LLM_MODE != 'off', otherwise the deterministic engine.
@@ -57,6 +57,8 @@ export type DealRecord = Deal & {
   stripe?: Deal['stripe'] & { chargeId?: string };
   /** When a held deal auto-refunds if the post was never verified (ISO). */
   holdUntil?: string;
+  /** walkReason not_a_fit: why the two sides never started talking. */
+  fitReasons?: string[];
   /** No price could close it: brand max below creator minimum by this much cash (walkReason budget_gap). */
   gap_usd?: number;
   /** Present when the deal needs both humans to accept before payment. */
@@ -127,6 +129,17 @@ export class DealDO extends DurableObject<Env> {
     if (args.requireApproval) deal.approvals = { brand: false, creator: false };
     this.save(deal);
     await this.market().register({ dealId: deal.dealId, campaignId: deal.campaignId, brandSlug: deal.brandSlug, creatorSlug: deal.creatorSlug, createdAt: ts });
+
+    // Fit first: two sides whose descriptions clash never start a conversation.
+    const fit = fitCheck(baseBrand, creator);
+    if (!fit.fit) {
+      deal.status = 'walked_away';
+      deal.walkReason = 'not_a_fit';
+      deal.fitReasons = fit.reasons;
+      deal.budgetLeft = (await campaign.note(deal.dealId, deal.creatorSlug, 'walked_away')).budgetLeft;
+      this.save(deal);
+      return this.must();
+    }
 
     // Negotiate in the background so the transcript fills in turn by turn (poll GET /deals/:id).
     const run = negotiate(this.env, args, brand, creator, now, { onTurn: (t) => this.insertTurn(t) })

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { runNegotiation } from '../src/engine/index';
 import { loadBrand } from '../src/profiles';
-import { brandForCreator, creatorForBrand, profileFromScraped, BRAND_FLEX } from '../src/pricing';
+import { brandForCreator, creatorForBrand, fitCheck, profileFromScraped, BRAND_FLEX } from '../src/pricing';
 import type { Creator } from '../src/types';
 
 const creator = (handle: string, avgViews30d: number, fairPrice: number): Creator => ({
@@ -59,5 +59,29 @@ describe('creatorForBrand', () => {
   it('keeps the normal floors for everyone else', () => {
     expect(creatorForBrand(fav, brandNamed('Cluely')).private.floor_usd.reel).toBe(base.private.floor_usd.reel);
     expect(creatorForBrand(base, brandNamed('Anthropic'))).toBe(base);
+  });
+});
+
+describe('fitCheck', () => {
+  const base = profileFromScraped('nick', creator('@nick', 47_000, 833));
+  const refusing = (...refuses: string[]) => ({ ...base, public: { ...base.public, refuses } });
+  const brandAs = (name: string, category: string) => {
+    const b = loadBrand('marine-layer');
+    return { ...b, public: { ...b.public, name, category } };
+  };
+
+  it('stops a gambling brand from messaging a creator who refuses gambling', () => {
+    const r = fitCheck(brandAs('LuckySpin', 'online casino'), refusing('gambling'));
+    expect(r.fit).toBe(false);
+    expect(r.reasons[0]).toContain('gambling');
+  });
+
+  it('catches word stems and synonyms', () => {
+    expect(fitCheck(brandAs('Cluely', 'software to cheat'), refusing('cheating')).fit).toBe(false);
+    expect(fitCheck(brandAs('CoinDrop', 'NFT marketplace'), refusing('crypto')).fit).toBe(false);
+  });
+
+  it('lets unrelated brands through', () => {
+    expect(fitCheck(loadBrand('marine-layer'), refusing('gambling', 'crypto')).fit).toBe(true);
   });
 });

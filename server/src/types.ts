@@ -119,6 +119,11 @@ export type CreatorProfile = {
     past_brand_deals: { brand: string; year: number; deliverables: string; terms: string; outcome: string }[];
     availability: { next_open_slot: string; slots_per_month: number; min_lead_time_days?: number; unsponsored_feed_share_pct_min?: number };
     barter_openness: { product: boolean; affiliate: boolean; store_credit: boolean; custom: string[] };
+    /** Creators publish their rules so brands (and brand agents) know them up front. */
+    interests?: string[];
+    refuses?: string[];
+    dealbreakers?: string[];
+    minimums_usd?: { reel: number; story: number; post: number };
   };
   private: {
     floor_usd: { reel: number; story: number; post: number; bundle_reel_3_stories: number };

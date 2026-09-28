@@ -61,7 +61,7 @@ function CreatorSetupForm({ creators, initial, hasSaved }: { creators: Creator[]
     <main className="mx-auto w-full max-w-5xl space-y-8 px-4 py-10 sm:px-6">
       <PageHeader
         title="Your deal rules"
-        description="Set these once. Your agent negotiates every brand offer with them and never tells a brand your minimums."
+        description="Set these once. Your rules are public, so only brands that fit reach out, and your agent negotiates within them."
       />
 
       <TextIntake
@@ -130,7 +130,7 @@ function CreatorSetupForm({ creators, initial, hasSaved }: { creators: Creator[]
             <NumberField label="Feed post" prefix="USD" value={form.idealPost} onChange={set("idealPost")} />
           </FormSection>
 
-          <FormSection title="Your minimums" description={<span className="space-y-2"><Visibility kind="private" /><br /><span className="block pt-1">Your agent never goes below these, and never says them out loud.</span></span>}>
+          <FormSection title="Your minimums" description={<span className="space-y-2"><Visibility kind="public" /><br /><span className="block pt-1">Your agent never goes below these. They are public, so brands know your floor up front.</span></span>}>
             <NumberField label="Lowest for a reel" prefix="USD" value={form.minReel} onChange={set("minReel")} />
             <NumberField label="Lowest for a story" prefix="USD" value={form.minStory} onChange={set("minStory")} />
             <NumberField label="Lowest for a post" prefix="USD" value={form.minPost} onChange={set("minPost")} />
@@ -141,7 +141,7 @@ function CreatorSetupForm({ creators, initial, hasSaved }: { creators: Creator[]
             title="Favorite brands"
             description={
               <span className="space-y-2">
-                <Visibility kind="private" />
+                <Visibility kind="public" />
                 <br />
                 <span className="block pt-1">Brands you would go lower for. Leave a field at 0 to use your normal minimum.</span>
               </span>
@@ -155,7 +155,7 @@ function CreatorSetupForm({ creators, initial, hasSaved }: { creators: Creator[]
             <NumberField label="Lowest post for them" prefix="USD" value={form.favoriteMinPost} onChange={set("favoriteMinPost")} />
           </FormSection>
 
-          <FormSection title="What you accept" description={<Visibility kind="private" />}>
+          <FormSection title="What you accept" description={<Visibility kind="public" />}>
             <div className="space-y-3 sm:col-span-2">
               <Checkbox label="Free products or services can count toward the price" isSelected={form.openToProducts} onChange={set("openToProducts")} />
               <Checkbox label="Affiliate commission can count toward the price" isSelected={form.openToAffiliate} onChange={set("openToAffiliate")} />

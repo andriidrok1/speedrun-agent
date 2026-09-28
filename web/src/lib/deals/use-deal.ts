@@ -60,7 +60,7 @@ const net = (price: number) => Math.round(price * (1 - PLATFORM_FEE) * 100) / 10
 const plural = (n: number, t: string) => `${n} ${n > 1 ? (t === "story" ? "stories" : `${t}s`) : t}`;
 
 /** System lines in the chat, derived from the deal status. */
-function eventsFor(status: DealStatus, price: number, extras: string[], handle: string, walkReason?: string): DealEvent[] {
+function eventsFor(status: DealStatus, price: number, extras: string[], handle: string, walkReason?: string, fitReasons?: string[]): DealEvent[] {
   const order: DealStatus[] = ["agreed", "held", "paid_out"];
   const reached = status === "refunded" ? 2 : order.indexOf(status) + 1;
   const out: DealEvent[] = [];
@@ -88,7 +88,9 @@ function eventsFor(status: DealStatus, price: number, extras: string[], handle: 
     out.push({
       status: "walked_away",
       text:
-        walkReason === "budget_gap"
+        walkReason === "not_a_fit"
+          ? `Not a fit, so no conversation started. ${fitReasons?.[0] ?? ""}`.trim()
+          : walkReason === "budget_gap"
           ? "Paused: the budgets do not overlap yet. Needs your call."
           : walkReason === "budget"
             ? "No deal: over the brand's remaining budget"
@@ -231,7 +233,7 @@ export function useDeal(creator: Creator, existing?: ExistingDeal): DealState {
     budgetLeft: deal?.budgetLeft ?? campaign?.budgetTotal ?? null,
     brandName: campaign?.brandName ?? "Brand",
     offers,
-    events: eventsFor(status, price, accepted ? describeExtras(accepted) : [], creator.handle, deal?.walkReason),
+    events: eventsFor(status, price, accepted ? describeExtras(accepted) : [], creator.handle, deal?.walkReason, deal?.fitReasons),
     typing: status === "negotiating" ? (last ? (last.from === "brand" ? "creator" : "brand") : "brand") : null,
     deliverables: last?.deliverables?.map((d) => plural(d.qty, d.type)).join(" + "),
     deadline: last?.deadline,

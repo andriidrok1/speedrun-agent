@@ -258,6 +258,34 @@ app.get('/campaigns/:id/evaluation', async (c) => {
   return c.json({ campaignId, brandSlug: campaign.brandSlug, budgetLeft: campaign.budgetLeft, ranked });
 });
 
+// Brand messenger: every conversation in a campaign, newest activity first.
+app.get('/campaigns/:id/deals', async (c) => {
+  const rows = await marketStub(c).dealsForCampaigns([c.req.param('id')]);
+  const deals = await Promise.all(
+    rows.map(async (r) => {
+      const d = await dealStub(c, r.dealId).get();
+      const last = d.turns[d.turns.length - 1];
+      return {
+        dealId: d.dealId,
+        creatorSlug: d.creatorSlug,
+        status: d.status,
+        price: d.price,
+        walkReason: d.walkReason,
+        fitReasons: d.fitReasons,
+        gap_usd: d.gap_usd,
+        approvals: d.approvals,
+        turns: d.turns.length,
+        lastFrom: last?.from,
+        lastCash: last?.package.cash_usd,
+        lastMessage: last?.message,
+        updatedAt: d.updatedAt,
+      };
+    }),
+  );
+  deals.sort((a, b) => (b.updatedAt ?? '').localeCompare(a.updatedAt ?? ''));
+  return c.json({ campaignId: c.req.param('id'), deals });
+});
+
 // Creator inbox: every conversation this creator's agent is in, newest activity first.
 app.get('/creators/:slug/deals', async (c) => {
   const rows = await marketStub(c).dealsForCreator(c.req.param('slug'));

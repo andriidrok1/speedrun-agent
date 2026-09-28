@@ -85,6 +85,11 @@ export function buildCreatorProfile(f: CreatorForm, scraped?: Creator): CreatorP
       past_brand_deals: [],
       availability: { next_open_slot: isoDay(5), slots_per_month: 4, min_lead_time_days: 5 },
       barter_openness: { product: f.openToProducts, affiliate: f.openToAffiliate, store_credit: false, custom: [] },
+      // Creators publish their rules: brands and their agents see them before reaching out.
+      interests: [f.niche, ...lines(f.favoriteBrands ?? "").map((b) => `loves working with ${b}`)].filter(Boolean),
+      refuses: lines(f.refuses),
+      dealbreakers: lines(f.dealbreakers),
+      minimums_usd: { reel: f.minReel, story: f.minStory, post: f.minPost },
     },
     private: {
       floor_usd: { reel: f.minReel, story: f.minStory, post: f.minPost, bundle_reel_3_stories: bundleMin },

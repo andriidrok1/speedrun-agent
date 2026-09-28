@@ -83,14 +83,31 @@ if (EXTRA > 0) {
 
 // 3. Reels from the last 30 days
 const since = Date.now() - DAYS * 24 * 3600 * 1000;
-const reels = await run("apify/instagram-reel-scraper", {
+let reels = await run("apify/instagram-reel-scraper", {
   username: profiles.map((p) => p.username),
-  resultsLimit: 30,
+  // 60 so accounts that post daily still cover the full 30 days.
+  resultsLimit: 60,
   onlyPostsNewerThan: new Date(since).toISOString().slice(0, 10),
   skipPinnedPosts: true,
+  // Trial reels are only shown to non-followers and get a fraction of normal views.
+  skipTrialReels: true,
 });
 fs.mkdirSync(path.join(ROOT, "data", "raw"), { recursive: true });
 fs.writeFileSync(path.join(ROOT, "data", "raw", "profiles.json"), JSON.stringify(profiles, null, 2));
+fs.writeFileSync(path.join(ROOT, "data", "raw", "reels.json"), JSON.stringify(reels, null, 2));
+
+// 3b. Creators with no regular reels in 30 days (only trial reels): use their latest regular reels instead.
+const seen = new Set(reels.filter((r) => Date.parse(r.timestamp) >= since && (r.videoPlayCount ?? r.videoViewCount ?? 0) > 0).map((r) => (r.ownerUsername ?? "").toLowerCase()));
+const quiet = profiles.map((p) => p.username).filter((u) => !seen.has(u.toLowerCase()));
+const fallback = new Set();
+if (quiet.length) {
+  const older = await run("apify/instagram-reel-scraper", { username: quiet, resultsLimit: 12, skipPinnedPosts: true, skipTrialReels: true });
+  for (const r of older) {
+    fallback.add((r.ownerUsername ?? "").toLowerCase());
+    reels.push(r);
+  }
+}
+
 fs.writeFileSync(path.join(ROOT, "data", "raw", "reels.json"), JSON.stringify(reels, null, 2));
 
 // 4. Build Creator records
@@ -104,12 +121,16 @@ for (const p of profiles) {
       likes: Math.max(0, r.likesCount ?? 0), // hidden likes come back as -1
       comments: r.commentsCount ?? 0,
     }))
-    .filter((r) => r.views > 0 && r.ts >= since); // filter here too, actor date filter is unverified
+    // filter here too, actor date filter is unverified; fallback creators keep their latest reels
+    .filter((r) => r.views > 0 && (r.ts >= since || fallback.has(p.username.toLowerCase())));
   if (!mine.length) {
     console.log(`  skip @${p.username}: no reels with views in the last ${DAYS} days`);
     continue;
   }
-  const avgViews = Math.round(mine.reduce((s, r) => s + r.views, 0) / mine.length);
+  // Median, not mean: one viral reel should not set the price of a typical post.
+  const sorted = mine.map((r) => r.views).sort((a, b) => a - b);
+  const mid = sorted.length >> 1;
+  const avgViews = Math.round(sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2);
   const engagement = mine.reduce((s, r) => s + (r.likes + r.comments) / r.views, 0) / mine.length;
   const niche = nicheOf[p.username] ?? "lifestyle";
   creators.push({

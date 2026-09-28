@@ -38,6 +38,7 @@ export type ServerDeal = {
   price: number;
   budgetLeft: number;
   walkReason?: string;
+  fitReasons?: string[];
   gap_usd?: number;
   brand_max_usd?: number;
   creator_min_usd?: number;
@@ -143,3 +144,24 @@ export type InboxItem = {
 
 /** Creator inbox: every conversation this creator's agent is in, newest first. */
 export const creatorDeals = (slug: string) => call<{ deals: InboxItem[] }>(`/creators/${encodeURIComponent(slug)}/deals`);
+
+export type BrandInboxItem = {
+  dealId: string;
+  creatorSlug: string;
+  status: DealStatus;
+  price: number;
+  /** "not_a_fit": the fit check stopped it before it began. "budget_gap": needs a human call. */
+  walkReason?: string;
+  fitReasons?: string[];
+  gap_usd?: number;
+  approvals?: { brand: boolean; creator: boolean };
+  turns: number;
+  lastFrom?: "brand" | "creator";
+  lastCash?: number;
+  lastMessage?: string;
+  updatedAt?: string;
+};
+
+/** Brand messenger: every conversation in one campaign, newest first. */
+export const campaignDeals = (campaignId: string) =>
+  call<{ campaignId: string; deals: BrandInboxItem[] }>(`/campaigns/${encodeURIComponent(campaignId)}/deals`);

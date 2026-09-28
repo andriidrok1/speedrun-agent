@@ -106,7 +106,11 @@ export function ProfileSummary({
           </li>
         ))}
       </ul>
-      <p className="text-sm text-tertiary">Private items are only seen by your own agent. The other side never sees them.</p>
+      <p className="text-sm text-tertiary">
+        {lines.some((l) => l.private)
+          ? "Private items are only seen by your own agent. The other side never sees them."
+          : "Everything here is public: brands see your rules before they reach out, so only brands that fit get in touch."}
+      </p>
       <div className="flex flex-wrap items-center justify-end gap-3 border-t border-secondary pt-5">
         {problem && <span className="text-sm text-error-primary">{problem}</span>}
         {footer}

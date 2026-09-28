@@ -39,7 +39,7 @@ function BrandSetup({ initial, hasSaved }: { initial: BrandForm; hasSaved: boole
   const save = () => {
     if (problems.length) return;
     saveBrand({ ...form, name: form.name.trim() });
-    router.push("/brand/creators");
+    router.push("/brand/inbox");
   };
 
   return (

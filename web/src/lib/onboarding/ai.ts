@@ -92,21 +92,18 @@ export function creatorSummary(f: CreatorForm): SummaryLine[] {
     },
     {
       text: `Your agent never goes below ${fmtUsd(f.minReel)} for a reel, ${fmtUsd(f.minStory)} for a story or ${fmtUsd(f.minPost)} for a post.`,
-      private: true,
     },
     {
       text: barter.length
         ? `${joinAnd(barter).replace(/^./, (c) => c.toUpperCase())} can count toward the price.`
         : "Cash only: products and affiliate deals do not count.",
-      private: true,
     },
-    ...(refuses.length ? [{ text: `You never work with ${joinAnd(refuses)}.`, private: true }] : []),
-    ...(dealbreakers.length ? [{ text: `You always refuse ${joinAnd(dealbreakers)}.`, private: true }] : []),
+    ...(refuses.length ? [{ text: `You never work with ${joinAnd(refuses)}.` }] : []),
+    ...(dealbreakers.length ? [{ text: `You always refuse ${joinAnd(dealbreakers)}.` }] : []),
     ...(favorites.length
       ? [
           {
-            text: `For ${favorites.length < 2 ? favorites[0] : `${favorites.slice(0, -1).join(", ")} or ${favorites[favorites.length - 1]}`} you'd go as low as ${fmtUsd(fav(f.favoriteMinReel, f.minReel))} a reel, ${fmtUsd(fav(f.favoriteMinStory, f.minStory))} a story, ${fmtUsd(fav(f.favoriteMinPost, f.minPost))} a post.`,
-            private: true,
+            text: `For ${favorites.length < 2 ? favorites[0] : `${favorites.slice(0, -1).join(", ")} or ${favorites[favorites.length - 1]}`} you would go as low as ${fmtUsd(fav(f.favoriteMinReel, f.minReel))} a reel, ${fmtUsd(fav(f.favoriteMinStory, f.minStory))} a story, ${fmtUsd(fav(f.favoriteMinPost, f.minPost))} a post.`,
           },
         ]
       : []),
