@@ -13,7 +13,13 @@ import {
   OFFER_STATUSES, toHistoryOffer, type ProposedOffer,
 } from './prompts';
 
-export type NegotiationResultLLM = NegotiationResult & { rule_violations: number; substitutions: number };
+export type NegotiationResultLLM = NegotiationResult & {
+  rule_violations: number;
+  substitutions: number;
+  /** Set when no price can work for these deliverables: brand max is below the creator minimum. */
+  walk_reason?: 'budget_gap';
+  gap_usd?: number;
+};
 
 export type NegotiationInputLLM = {
   brand: BrandProfile;
@@ -30,6 +36,10 @@ export type NegotiationInputLLM = {
 };
 
 const HARD_ROUND_LIMIT = 50;
+/** Demo pacing: deals resolve in about a minute. */
+const DEFAULT_MAX_ROUNDS = 4;
+/** From this round on, a cash gap switches the agents from haggling to restructuring. */
+const RESTRUCTURE_FROM_ROUND = 2;
 const MAX_ATTEMPTS = 2;
 const MIN_WALK_ROUND = 3;
 // Mirror of the creator dealbreakers the engine enforces in rules.ts (its constants are not exported).
@@ -129,6 +139,37 @@ function checkOwnRule(offer: Offer, side: Side, brand: BrandProfile, creator: Cr
   }
 }
 
+const delivKey = (o: Offer): string =>
+  o.deliverables.map((d) => `${d.qty}x${d.type}`).sort().join('+') + `|${o.usage_rights}`;
+
+export const describeDeliverables = (o: Pick<Offer, 'deliverables'>): string =>
+  o.deliverables.map((d) => `${d.qty} ${d.qty > 1 ? (d.type === 'story' ? 'stories' : `${d.type}s`) : d.type}`).join(' + ');
+
+/**
+ * Cash the two sides are apart for these terms (same non-cash items on the table), using both
+ * private rule sets. > 0 means no cash amount can close it: the brand's max is below the creator's
+ * minimum. Only the platform computes this; neither agent ever sees the number.
+ */
+export function cashGap(terms: Offer, brand: BrandProfile, creator: CreatorProfile, ctx: NegotiationCtx): number {
+  const nonCash = { ...terms.package, cash_usd: 0 };
+  const brandMaxCash = brandCap(brand) - valueForBrand(nonCash, brand);
+  const creatorMinCash = creatorRequired(terms, creator, ctx.now) - valueForCreator(nonCash, terms, creator);
+  return money(creatorMinCash - brandMaxCash);
+}
+
+/** No backwards moves: for the same deliverables and rights the brand only goes up, the creator only down. */
+function checkMonotonic(offer: Offer, lastOwn: Offer | null, side: Side, where: string): void {
+  if (!lastOwn || lastOwn.status === 'accept' || delivKey(lastOwn) !== delivKey(offer)) return;
+  const prev = lastOwn.package.cash_usd;
+  const cash = offer.package.cash_usd;
+  if (side === 'brand' && cash < prev - 0.5) {
+    throw new RuleViolation(`${where}: you already offered ${prev} cash for these deliverables. You cannot go lower. Hold at ${prev}, raise it, or change the deliverables.`);
+  }
+  if (side === 'creator' && cash > prev + 0.5) {
+    throw new RuleViolation(`${where}: you already asked ${prev} cash for these deliverables. You cannot ask for more. Hold at ${prev}, lower it, or change the deliverables or rights.`);
+  }
+}
+
 function engineSaysNoCrossing(side: Side, round: number, lastOpposing: Offer | null, brand: BrandProfile, creator: CreatorProfile): boolean {
   if (side !== 'brand' || !lastOpposing) return false;
   return creatorAtFloor(round, creator) && valueForBrand(lastOpposing.package, brand) > brandCap(brand);
@@ -136,7 +177,7 @@ function engineSaysNoCrossing(side: Side, round: number, lastOpposing: Offer | n
 
 /** Turn a validated proposal into the Offer that goes on the transcript, or throw RuleViolation. */
 function referee(
-  proposed: ProposedOffer, side: Side, round: number, lastOpposing: Offer | null,
+  proposed: ProposedOffer, side: Side, round: number, lastOpposing: Offer | null, lastOwn: Offer | null,
   brand: BrandProfile, creator: CreatorProfile, ctx: NegotiationCtx,
 ): Offer {
   const where = `round ${round} ${side}`;
@@ -162,6 +203,7 @@ function referee(
   };
   checkHardTerms(offer, brand, creator, ctx, where);
   checkOwnRule(offer, side, brand, creator, ctx, where);
+  checkMonotonic(offer, lastOwn, side, where);
   return offer;
 }
 
@@ -172,7 +214,7 @@ export async function runNegotiationLLM(input: NegotiationInputLLM): Promise<Neg
   const limit = Math.min(
     brand.private.concession_rules.max_rounds,
     creator.private.concession_rules.max_rounds,
-    maxRounds ?? HARD_ROUND_LIMIT,
+    maxRounds ?? DEFAULT_MAX_ROUNDS,
     HARD_ROUND_LIMIT,
   );
   if (limit < 1) throw new Error(`runNegotiationLLM: round limit must be >= 1, got ${limit}`);
@@ -199,10 +241,18 @@ export async function runNegotiationLLM(input: NegotiationInputLLM): Promise<Neg
   };
 
   /** One side's move: up to MAX_ATTEMPTS model calls with referee feedback, then the engine's deterministic offer. */
+  const lastOwnOf = (side: Side): Offer | null => [...turns].reverse().find((t) => t.from === side) ?? null;
+
   const move = async (side: Side, round: number, lastOpposing: Offer | null): Promise<Offer> => {
-    const messages: ChatCompletionMessageParam[] = [
-      { role: 'user', content: buildTurnUserMessage({ side, round, history: turns, campaignName: brand.public.campaign.name, lastRound: limit }) },
-    ];
+    let content = buildTurnUserMessage({ side, round, history: turns, campaignName: brand.public.campaign.name, lastRound: limit });
+    // Mediator hint: cash alone cannot close this, so trade on scope instead. No numbers leak.
+    if (lastOpposing && round >= RESTRUCTURE_FROM_ROUND && cashGap(lastOpposing, brand, creator, ctx) > 0) {
+      content += side === 'brand'
+        ? '\n\nMediator note: at your limit, cash alone will not close this for these deliverables. Do not lower your cash. Restructure instead: offer fewer deliverables (for example stories only, or one reel without stories), or more product or affiliate, and say it plainly in one friendly sentence.'
+        : '\n\nMediator note: the brand looks close to its limit for these deliverables. If you want this deal, offer a smaller scope at a price that still works for you (for example stories only), rather than holding the same ask.';
+    }
+    const messages: ChatCompletionMessageParam[] = [{ role: 'user', content }];
+    const lastOwn = lastOwnOf(side);
     let lastText: string | undefined;
     for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
       const res = await proposeTurn({ client, side, round, system: system[side], messages, tool });
@@ -210,7 +260,7 @@ export async function runNegotiationLLM(input: NegotiationInputLLM): Promise<Neg
       const where = `round ${round} ${side}`;
       try {
         const proposed = parseProposed(res.input, where);
-        const offer = referee(proposed, side, round, lastOpposing, brand, creator, ctx);
+        const offer = referee(proposed, side, round, lastOpposing, lastOwn, brand, creator, ctx);
         log(`[llm] round ${round} ${side} attempt ${attempt}: cash=${offer.package.cash_usd} status=${offer.status} ${res.ms}ms ok`);
         return offer;
       } catch (err) {
@@ -232,7 +282,7 @@ export async function runNegotiationLLM(input: NegotiationInputLLM): Promise<Neg
   };
 
   // Like the engine, acceptedOffer is the offer that got accepted (the turn before the accept), not the accept turn.
-  const finish = (offer: Offer, outcome: 'agreed' | 'walked_away'): NegotiationResultLLM => {
+  const finish = (offer: Offer, outcome: 'agreed' | 'walked_away', gap?: number): NegotiationResultLLM => {
     const accepted = outcome === 'agreed' ? turns[turns.length - 2] : undefined;
     return {
       turns,
@@ -241,23 +291,34 @@ export async function runNegotiationLLM(input: NegotiationInputLLM): Promise<Neg
       rounds: offer.round,
       rule_violations,
       substitutions,
+      ...(gap && gap > 0 ? { walk_reason: 'budget_gap' as const, gap_usd: Math.round(gap) } : {}),
     };
+  };
+  /** Gap on the last terms either side put on the table. */
+  const gapNow = (): number => {
+    const lastTerms = [...turns].reverse().find((t) => t.status === 'offer' || t.status === 'counter');
+    return lastTerms ? cashGap(lastTerms, brand, creator, ctx) : 0;
   };
 
   let lastCreator: Offer | null = null;
   for (let round = 1; round <= limit; round++) {
     const brandOffer = push(await move('brand', round, lastCreator));
     if (brandOffer.status === 'accept') return finish(brandOffer, 'agreed');
-    if (brandOffer.status === 'walk_away') return finish(brandOffer, 'walked_away');
+    if (brandOffer.status === 'walk_away') return finish(brandOffer, 'walked_away', gapNow());
 
     const creatorOffer = push(await move('creator', round, brandOffer));
     if (creatorOffer.status === 'accept') return finish(creatorOffer, 'agreed');
-    if (creatorOffer.status === 'walk_away') return finish(creatorOffer, 'walked_away');
+    if (creatorOffer.status === 'walk_away') return finish(creatorOffer, 'walked_away', gapNow());
     lastCreator = creatorOffer;
   }
 
   const last = turns[turns.length - 1];
   if (!last) throw new Error('runNegotiationLLM: no turns produced');
-  push({ ...last, from: 'brand', message: `We've gone ${limit} rounds without landing it, so we'll pause here. Door stays open for a future drop.`, status: 'walk_away' });
-  return finish(last, 'walked_away');
+  const gap = gapNow();
+  // End on a question for the humans, not a door slam.
+  const message = gap > 0
+    ? `We're about $${Math.round(gap).toLocaleString('en-US')} apart on cash for ${describeDeliverables(last)}. Two ways to make it work: trim the deliverables, or raise the budget. Which one should we try?`
+    : `We're close but not there after ${limit} rounds. Want us to try a smaller scope, or should each team take a look and come back?`;
+  push({ ...last, from: 'brand', message, status: 'walk_away' });
+  return finish(last, 'walked_away', gap);
 }

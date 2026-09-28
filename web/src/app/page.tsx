@@ -1,10 +1,13 @@
 import { Button } from "@/components/base/buttons/button";
+import { HeroTiles } from "@/components/app/hero-tiles";
 
 export default function Home() {
   return (
     <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col justify-center gap-10 px-6 py-16">
-      <div className="space-y-4">
-        <h1 className="text-display-md font-semibold tracking-tight text-primary">Creator Deals</h1>
+      <div className="space-y-6">
+        <h1 aria-label="Creator Deals">
+          <HeroTiles words={["creator", "deals"]} />
+        </h1>
         <p className="max-w-xl text-lg text-tertiary">
           Two AI agents negotiate the sponsorship, one for the brand and one for the creator. Both start from real view
           data. The money moves only when the post is live.

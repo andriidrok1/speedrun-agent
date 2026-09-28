@@ -27,6 +27,12 @@ export interface CreatorForm {
   openToAffiliate: boolean;
   refuses: string; // categories / brands, comma or newline separated
   dealbreakers: string;
+  /** Private: brands you would go lower for, comma separated ("" = none). */
+  favoriteBrands: string;
+  /** Private: the lowest you accept from a favorite brand (0 = use the normal minimum). */
+  favoriteMinReel: number;
+  favoriteMinStory: number;
+  favoriteMinPost: number;
 }
 
 export function creatorFormDefaults(c?: Creator): CreatorForm {
@@ -47,12 +53,19 @@ export function creatorFormDefaults(c?: Creator): CreatorForm {
     openToAffiliate: true,
     refuses: "gambling, crypto",
     dealbreakers: "perpetual usage rights",
+    favoriteBrands: "",
+    favoriteMinReel: 0,
+    favoriteMinStory: 0,
+    favoriteMinPost: 0,
   };
 }
 
 export function buildCreatorProfile(f: CreatorForm, scraped?: Creator): CreatorProfile {
   const bundleMin = f.minReel + 3 * f.minStory;
   const bundleIdeal = f.idealReel + 3 * f.idealStory;
+  const favorites = lines(f.favoriteBrands ?? "");
+  const fav = (x: number | undefined, normal: number) => (x && x > 0 ? x : normal);
+  const favFloor = { reel: fav(f.favoriteMinReel, f.minReel), story: fav(f.favoriteMinStory, f.minStory), post: fav(f.favoriteMinPost, f.minPost) };
   return {
     public: {
       name: f.name || f.handle,
@@ -92,7 +105,10 @@ export function buildCreatorProfile(f: CreatorForm, scraped?: Creator): CreatorP
       },
       stop_brands: lines(f.refuses),
       dealbreakers: lines(f.dealbreakers),
-      soft_preferences: [],
+      soft_preferences: favorites.length ? [`Loves working with ${favorites.join(", ")}; will go lower for them`] : [],
+      ...(favorites.length
+        ? { preferred_brands: { names: favorites, floor_usd: { ...favFloor, bundle_reel_3_stories: favFloor.reel + 3 * favFloor.story } } }
+        : {}),
     },
   };
 }

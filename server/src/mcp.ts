@@ -24,9 +24,9 @@ const S = { id: (d: string) => ({ type: 'string', description: d }) };
 export const TOOLS = [
   { name: 'list_brands', description: 'Brands with a bundled profile: slug, campaign name, budget total (public data only).', inputSchema: obj({}) },
   { name: 'list_creators', description: 'Creators with a bundled profile: slug, handle, platforms summary (public data only).', inputSchema: obj({}) },
-  { name: 'create_campaign', description: 'Create a campaign for a brand. budgetUsd defaults to the brand profile budget.', inputSchema: obj({ brandSlug: S.id('brand slug from list_brands'), budgetUsd: { type: 'number', description: 'budget in USD, optional' } }, ['brandSlug']) },
+  { name: 'create_campaign', description: 'Create a campaign for a brand: either a bundled brandSlug, or `brand`, a full onboarded brand profile object (public + private, same as REST POST /campaigns). budgetUsd defaults to the brand profile budget.', inputSchema: obj({ brandSlug: S.id('brand slug from list_brands (omit when passing brand)'), brand: { type: 'object', description: 'full brand profile object from onboarding, optional; overrides brandSlug' }, budgetUsd: { type: 'number', description: 'budget in USD, optional' } }) },
   { name: 'campaign_status', description: 'Campaign with budgetTotal, budgetLeft and its deals.', inputSchema: obj({ campaignId: S.id('campaign id') }, ['campaignId']) },
-  { name: 'start_deal', description: 'Start a negotiation between the campaign brand and a creator. Returns the deal in status "negotiating"; two LLM agents negotiate in the background (4-7 turns, ~10 s each). Use wait_for_deal next.', inputSchema: obj({ campaignId: S.id('campaign id'), creatorSlug: S.id('creator slug from list_creators') }, ['campaignId', 'creatorSlug']) },
+  { name: 'start_deal', description: 'Start a negotiation between the campaign brand and a creator. Returns the deal in status "negotiating"; two LLM agents negotiate in the background (4-7 turns, ~10 s each). Use wait_for_deal next.', inputSchema: obj({ campaignId: S.id('campaign id'), creatorSlug: S.id('creator slug from list_creators, or a slug for a scraped creator (handle without @)'), creator: { type: 'object', description: 'scraped Creator, optional: { handle, platform, followers, avgViews30d, engagement, fairPrice }', properties: { handle: { type: 'string' }, platform: { type: 'string' }, followers: { type: 'number' }, avgViews30d: { type: 'number' }, engagement: { type: 'number' }, fairPrice: { type: 'number' } }, required: ['handle', 'fairPrice'] }, creatorProfile: { type: 'object', description: 'full onboarded creator profile object, optional' } }, ['campaignId', 'creatorSlug']) },
   { name: 'get_deal', description: 'Deal with its transcript turns (messages, package, values for each side).', inputSchema: obj({ dealId: S.id('deal id') }, ['dealId']) },
   { name: 'wait_for_deal', description: 'Poll the deal every 3 s until the negotiation finishes (status != negotiating) or timeoutSec passes (default 45, keep it under 60 so the MCP client does not time out). If the result has timedOut: true, call this tool again with the same dealId until it finishes. Returns the final deal plus a one-line-per-turn transcript summary.', inputSchema: obj({ dealId: S.id('deal id'), timeoutSec: { type: 'number', description: 'max seconds to wait per call, default 45, max 240' } }, ['dealId']) },
   { name: 'fund_deal', description: 'Brand pays an agreed deal (Stripe test mode). agreed -> held.', inputSchema: obj({ dealId: S.id('deal id') }, ['dealId']) },
@@ -56,11 +56,13 @@ export function mountMcp(app: App) {
       case 'list_creators':
         return Object.entries(CREATORS).map(([slug, c]) => ({ slug, name: c.public.name, handle: c.public.handle, niche: c.public.niche, platforms: c.public.platforms.map((p) => `${p.name}: ${p.followers} followers, ${p.avg_views} avg views, ${p.engagement_pct}% eng`), rateCard: c.public.rate_card }));
       case 'create_campaign':
-        return call(env, 'POST', '/campaigns', { brandSlug: str(a, 'brandSlug'), ...(a.budgetUsd !== undefined ? { budgetUsd: a.budgetUsd } : {}) });
+        // Validation of `brand` lives in the REST route (brandFromBody in index.ts).
+        return call(env, 'POST', '/campaigns', { ...(a.brand !== undefined ? { brand: a.brand } : { brandSlug: str(a, 'brandSlug') }), ...(a.budgetUsd !== undefined ? { budgetUsd: a.budgetUsd } : {}) });
       case 'campaign_status':
         return call(env, 'GET', `/campaigns/${encodeURIComponent(str(a, 'campaignId'))}`);
       case 'start_deal':
-        return call(env, 'POST', '/deals', { campaignId: str(a, 'campaignId'), creatorSlug: str(a, 'creatorSlug') });
+        // `creator` / `creatorProfile` are validated by the REST route (POST /deals in index.ts).
+        return call(env, 'POST', '/deals', { campaignId: str(a, 'campaignId'), creatorSlug: str(a, 'creatorSlug'), ...(a.creator !== undefined ? { creator: a.creator } : {}), ...(a.creatorProfile !== undefined ? { creatorProfile: a.creatorProfile } : {}) });
       case 'get_deal':
         return call(env, 'GET', `/deals/${encodeURIComponent(str(a, 'dealId'))}`);
       case 'wait_for_deal': {

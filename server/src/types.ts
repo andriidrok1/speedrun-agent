@@ -136,6 +136,8 @@ export type CreatorProfile = {
     stop_brands: string[];
     dealbreakers: string[];
     soft_preferences: string[];
+    /** Brands the creator would go lower for: these floors replace floor_usd when the brand name matches. */
+    preferred_brands?: { names: string[]; floor_usd: { reel: number; story: number; post: number; bundle_reel_3_stories: number } };
   };
 };
 

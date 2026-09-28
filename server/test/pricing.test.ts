@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { runNegotiation } from '../src/engine/index';
 import { loadBrand } from '../src/profiles';
-import { brandForCreator, profileFromScraped, BRAND_FLEX } from '../src/pricing';
+import { brandForCreator, creatorForBrand, profileFromScraped, BRAND_FLEX } from '../src/pricing';
 import type { Creator } from '../src/types';
 
 const creator = (handle: string, avgViews30d: number, fairPrice: number): Creator => ({
@@ -37,5 +37,27 @@ describe('brandForCreator', () => {
     expect(mid).toBeGreaterThan(small);
     expect(big).toBeGreaterThan(mid);
     expect(mid).toBeLessThanOrEqual(833 * 1.4 * BRAND_FLEX);
+  });
+});
+
+describe('creatorForBrand', () => {
+  const base = profileFromScraped('nick', creator('@nick', 47_000, 833));
+  const fav = {
+    ...base,
+    private: { ...base.private, preferred_brands: { names: ['OpenAI', 'Anthropic'], floor_usd: { reel: 500, story: 75, post: 200, bundle_reel_3_stories: 725 } } },
+  };
+  const brandNamed = (name: string) => {
+    const b = loadBrand('marine-layer');
+    return { ...b, public: { ...b.public, name } };
+  };
+
+  it('uses the favorite floors for a favorite brand', () => {
+    expect(creatorForBrand(fav, brandNamed('Anthropic')).private.floor_usd.reel).toBe(500);
+    expect(creatorForBrand(fav, brandNamed('openai inc')).private.floor_usd.reel).toBe(500);
+  });
+
+  it('keeps the normal floors for everyone else', () => {
+    expect(creatorForBrand(fav, brandNamed('Cluely')).private.floor_usd.reel).toBe(base.private.floor_usd.reel);
+    expect(creatorForBrand(base, brandNamed('Anthropic'))).toBe(base);
   });
 });

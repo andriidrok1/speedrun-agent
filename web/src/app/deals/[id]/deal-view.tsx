@@ -1,20 +1,37 @@
 "use client";
 
-import { useEffect, useRef } from "react";
-import { ArrowLeft, BankNote01, Building02, Check, CheckVerified01, CreditCard01, Lock01, RefreshCw01, User01, XClose } from "@untitledui/icons";
+import { useEffect, useRef, useState } from "react";
+import { AlertCircle, ArrowLeft, BankNote01, Building02, Check, CheckVerified01, CreditCard01, Lock01, RefreshCw01, User01, XClose } from "@untitledui/icons";
 import type { Creator, DealStatus } from "@shared/contract";
 import { AvatarLabelGroup } from "@/components/base/avatar/avatar-label-group";
 import { Badge, BadgeWithDot } from "@/components/base/badges/badges";
+import { describeDeliverables, fairFor } from "@/components/app/deal/deal-math";
+import { GAP_HINTS, GapCard } from "@/components/app/deal/gap-card";
+import { NegotiationChart } from "@/components/app/deal/negotiation-chart";
+import { PackageChips } from "@/components/app/deal/package-chips";
+import { WhatsMade } from "@/components/app/deal/whats-made";
 import { Button } from "@/components/base/buttons/button";
-import { type ChatOffer, type DealEvent, type DealState, PLATFORM_FEE, useDeal } from "@/lib/deals/use-deal";
+import { type ChatOffer, type DealEvent, type DealState, type ExistingDeal, PLATFORM_FEE, useDeal } from "@/lib/deals/use-deal";
 import { fmtUsd } from "@/lib/format";
 import { cx } from "@/utils/cx";
 
 const STEPS: { status: DealStatus; label: string; hint: string }[] = [
-  { status: "negotiating", label: "Negotiating", hint: "Two agents trade offers" },
+  {
+    status: "negotiating",
+    label: "Negotiating",
+    hint: "Two agents trade offers",
+  },
   { status: "agreed", label: "Agreed", hint: "Price is locked" },
-  { status: "held", label: "Paid and held", hint: "Brand paid, Stripe holds the money" },
-  { status: "paid_out", label: "Paid out", hint: "Post verified, creator paid" },
+  {
+    status: "held",
+    label: "Paid and held",
+    hint: "Brand paid, Stripe holds the money",
+  },
+  {
+    status: "paid_out",
+    label: "Paid out",
+    hint: "Post verified, creator paid",
+  },
 ];
 
 const STATUS_LABEL: Record<DealStatus, string> = {
@@ -28,17 +45,26 @@ const STATUS_LABEL: Record<DealStatus, string> = {
 
 const card = "rounded-xl bg-primary shadow-xs ring-1 ring-secondary ring-inset";
 
-export function DealView({ creator }: { creator: Creator }) {
-  const d = useDeal(creator);
+type Perspective = "platform" | "creator";
+
+export function DealView({ creator, existing, perspective = "platform", embedded = false }: { creator: Creator; existing?: ExistingDeal; perspective?: Perspective; embedded?: boolean }) {
+  const d = useDeal(creator, existing);
+  const [hint, setHint] = useState<keyof typeof GAP_HINTS | null>(null);
+  const needsCall = d.status === "walked_away" && d.walkReason === "budget_gap";
+  const latest = d.offers[d.offers.length - 1];
+  const locked = d.status !== "negotiating" && d.status !== "walked_away";
+  const brandBest = d.offers.filter((o) => o.from === "brand").reduce<number | undefined>((m, o) => (m === undefined || o.amount > m ? o.amount : m), undefined);
   const platform = creator.platform === "tiktok" ? "TikTok" : "Instagram";
 
   return (
-    <main className="mx-auto w-full max-w-6xl space-y-6 px-4 py-8 sm:px-6">
-      <Button href="/brand/creators" color="link-gray" size="sm" iconLeading={ArrowLeft}>
-        All creators
-      </Button>
+    <main className={embedded ? "w-full space-y-6" : "mx-auto w-full max-w-6xl space-y-6 px-4 py-8 sm:px-6"}>
+      {!embedded && (
+        <Button href="/brand/creators" color="link-gray" size="sm" iconLeading={ArrowLeft}>
+          All creators
+        </Button>
+      )}
 
-      <div className="flex flex-wrap items-center justify-between gap-4">
+      <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:flex-wrap sm:items-center">
         <AvatarLabelGroup
           size="lg"
           src={creator.avatarUrl}
@@ -51,34 +77,53 @@ export function DealView({ creator }: { creator: Creator }) {
           <BadgeWithDot size="md" color={d.mode === "live" ? "brand" : d.mode === "offline" ? "warning" : "gray"}>
             {d.mode === "live" ? "Live: AI agents + Stripe test mode" : d.mode === "offline" ? "Offline demo: server not reachable" : "Connecting"}
           </BadgeWithDot>
-          <BadgeWithDot size="md" color={d.status === "paid_out" ? "success" : d.status === "walked_away" ? "error" : "gray"}>
-            {STATUS_LABEL[d.status]}
+          <BadgeWithDot size="md" color={d.status === "paid_out" ? "success" : needsCall ? "warning" : d.status === "walked_away" ? "error" : "gray"}>
+            {needsCall ? "Needs your call" : STATUS_LABEL[d.status]}
           </BadgeWithDot>
         </div>
       </div>
 
       <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
-        <section className={card}>
-          <div className="flex items-start justify-between gap-4 border-b border-secondary px-5 py-4">
-            <div>
-              <h2 className="text-md font-semibold text-primary">Live negotiation</h2>
-              <p className="text-sm text-tertiary">Each agent knows only its own limits. Neither ever sees the other side&apos;s.</p>
+        <div className="min-w-0 space-y-6">
+          <section className={card}>
+            <div className="flex items-start justify-between gap-4 border-b border-secondary px-5 py-4">
+              <div>
+                <h2 className="text-md font-semibold text-primary">Live negotiation</h2>
+                <p className="text-sm text-tertiary">Each agent knows only its own limits. Neither ever sees the other side&apos;s.</p>
+              </div>
+              <Button size="sm" color="secondary" iconLeading={RefreshCw01} onClick={d.restart} isDisabled={d.status === "held" || d.busy}>
+                New negotiation
+              </Button>
             </div>
-            <Button size="sm" color="secondary" iconLeading={RefreshCw01} onClick={d.restart} isDisabled={d.status === "held" || d.busy}>
-              New negotiation
-            </Button>
-          </div>
-          <Feed offers={d.offers} events={d.events} typing={d.typing} fair={creator.fairPrice} connecting={d.mode === "connecting"} />
-        </section>
+            {hint && d.status === "negotiating" && (
+              <p className="flex items-center gap-2 border-b border-secondary bg-secondary px-5 py-2.5 text-xs text-secondary">
+                <AlertCircle className="size-4 shrink-0 text-fg-quaternary" />
+                {GAP_HINTS[hint]}
+              </p>
+            )}
+            <Feed offers={d.offers} events={d.events} typing={d.typing} fair={creator.fairPrice} connecting={d.mode === "connecting"} needsCall={needsCall} />
+          </section>
+          <NegotiationChart offers={d.offers} fairReel={creator.fairPrice} />
+        </div>
 
         <aside className="space-y-6">
+          {needsCall && (
+            <GapCard
+              gap={d.gapUsd}
+              brandMax={d.brandMaxUsd ?? brandBest}
+              creatorMin={d.creatorMinUsd}
+              onPick={(k) => {
+                setHint(k);
+                d.restart();
+              }}
+            />
+          )}
           <PriceCard offers={d.offers} fair={creator.fairPrice} status={d.status} price={d.price} />
-          <Timeline status={d.status} />
+          <WhatsMade offer={latest} locked={locked} />
+          <Timeline status={d.status} needsCall={needsCall} />
           <div className={cx(card, "space-y-4 p-5")}>
             <h2 className="text-md font-semibold text-primary">Terms</h2>
             <dl className="space-y-2 text-sm">
-              <Row label="Deliverables" value={d.deliverables ?? "-"} />
-              {d.deadline && <Row label="Due" value={d.deadline} />}
               <Row label="Platform fee" value={`${PLATFORM_FEE * 100}%`} />
               <Row label="Creator gets" value={d.price ? fmtUsd(Math.round(d.price * (1 - PLATFORM_FEE) * 100) / 100) : "-"} />
               {d.budgetLeft !== null && <Row label="Brand budget left" value={fmtUsd(d.budgetLeft)} />}
@@ -90,7 +135,7 @@ export function DealView({ creator }: { creator: Creator }) {
                 {d.stripe.accountId && <div>creator {d.stripe.accountId}</div>}
               </dl>
             )}
-            <Action d={d} />
+            <Action d={d} perspective={perspective} needsCall={needsCall} />
             {d.error && <p className="text-sm text-error-primary">{d.error}</p>}
           </div>
         </aside>
@@ -99,10 +144,27 @@ export function DealView({ creator }: { creator: Creator }) {
   );
 }
 
-function Feed({ offers, events, typing, fair, connecting }: { offers: ChatOffer[]; events: DealEvent[]; typing: "brand" | "creator" | null; fair: number; connecting: boolean }) {
+function Feed({
+  offers,
+  events,
+  typing,
+  fair,
+  connecting,
+  needsCall,
+}: {
+  offers: ChatOffer[];
+  events: DealEvent[];
+  typing: "brand" | "creator" | null;
+  fair: number;
+  connecting: boolean;
+  needsCall: boolean;
+}) {
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    ref.current?.scrollTo({ top: ref.current.scrollHeight, behavior: "smooth" });
+    ref.current?.scrollTo({
+      top: ref.current.scrollHeight,
+      behavior: "smooth",
+    });
   }, [offers.length, events.length, typing]);
 
   return (
@@ -112,7 +174,7 @@ function Feed({ offers, events, typing, fair, connecting }: { offers: ChatOffer[
         <OfferBubble key={i} offer={o} fair={fair} />
       ))}
       {events.map((e) => (
-        <EventRow key={e.status} event={e} />
+        <EventRow key={e.status} event={e} needsCall={needsCall} />
       ))}
       {typing && <Typing from={typing} />}
     </div>
@@ -131,7 +193,9 @@ function Speaker({ from }: { from: "brand" | "creator" }) {
 
 function OfferBubble({ offer, fair }: { offer: ChatOffer; fair: number }) {
   const mine = offer.from === "creator";
-  const delta = fair ? Math.round(((offer.amount - fair) / fair) * 100) : 0;
+  const fairCash = fairFor(offer.deliverables, fair);
+  const delta = fairCash ? Math.round(((offer.amount - fairCash) / fairCash) * 100) : 0;
+  const what = describeDeliverables(offer.deliverables);
   return (
     <div className={cx("flex max-w-[85%] flex-col gap-1.5 animate-in fade-in slide-in-from-bottom-1 duration-300", mine ? "items-end self-end" : "items-start")}>
       <div className="flex items-center gap-2">
@@ -142,11 +206,13 @@ function OfferBubble({ offer, fair }: { offer: ChatOffer; fair: number }) {
         <div className="flex flex-wrap items-center gap-x-2">
           <span className={cx("text-lg font-semibold tabular-nums", mine ? "text-primary_on-brand" : "text-primary")}>{fmtUsd(offer.amount)}</span>
           <span className={cx("text-xs font-medium tabular-nums", mine ? "text-tertiary_on-brand" : "text-tertiary")}>
-            cash, {delta === 0 ? "at fair price" : `${delta > 0 ? "+" : ""}${delta}% vs fair`}
+            cash, {delta === 0 ? `at fair price for ${what}` : `${delta > 0 ? "+" : ""}${delta}% vs fair for ${what}`}
           </span>
         </div>
-        {offer.extras.length > 0 && (
-          <p className={cx("text-xs font-medium", mine ? "text-secondary_on-brand" : "text-secondary")}>+ {offer.extras.join(", ")}</p>
+        {offer.pkg || offer.deliverables.length ? (
+          <PackageChips pkg={offer.pkg} deliverables={offer.deliverables} tone={mine ? "brand" : "gray"} />
+        ) : (
+          offer.extras.length > 0 && <p className={cx("text-xs font-medium", mine ? "text-secondary_on-brand" : "text-secondary")}>+ {offer.extras.join(", ")}</p>
         )}
         <p className={cx("text-sm", mine ? "text-tertiary_on-brand" : "text-secondary")}>{offer.message}</p>
       </div>
@@ -162,12 +228,18 @@ const EVENT_ICON: Partial<Record<DealStatus, typeof Check>> = {
   walked_away: XClose,
 };
 
-function EventRow({ event }: { event: DealEvent }) {
-  const Icon = EVENT_ICON[event.status] ?? Check;
+function EventRow({ event, needsCall }: { event: DealEvent; needsCall: boolean }) {
+  const gap = needsCall && event.status === "walked_away";
+  const Icon = gap ? AlertCircle : (EVENT_ICON[event.status] ?? Check);
   return (
     <div className="flex items-center gap-3 animate-in fade-in duration-300">
       <span className="h-px flex-1 bg-border-secondary" />
-      <span className={cx("flex items-center gap-1.5 text-center text-xs font-medium", event.status === "walked_away" ? "text-error-primary" : "text-brand-secondary")}>
+      <span
+        className={cx(
+          "flex items-center gap-1.5 text-center text-xs font-medium",
+          gap ? "text-warning-primary" : event.status === "walked_away" ? "text-error-primary" : "text-brand-secondary",
+        )}
+      >
         <Icon className="size-4 shrink-0" />
         {event.text}
       </span>
@@ -193,7 +265,9 @@ function Typing({ from }: { from: "brand" | "creator" }) {
   );
 }
 
-function PriceCard({ offers, fair, status, price }: { offers: ChatOffer[]; fair: number; status: DealStatus; price: number }) {
+function PriceCard({ offers, fair: fairReel, status, price }: { offers: ChatOffer[]; fair: number; status: DealStatus; price: number }) {
+  const ds = offers[offers.length - 1]?.deliverables ?? [];
+  const fair = fairFor(ds, fairReel);
   const opened = offers.find((o) => o.from === "brand")?.amount;
   const asked = offers.find((o) => o.from === "creator")?.amount;
   const locked = status !== "negotiating" && status !== "walked_away";
@@ -205,7 +279,11 @@ function PriceCard({ offers, fair, status, price }: { offers: ChatOffer[]; fair:
     <div className={cx(card, "space-y-4 p-5")}>
       <div className="flex items-baseline justify-between">
         <h2 className="text-md font-semibold text-primary">Price</h2>
-        {locked && <Badge size="sm" color="brand">Locked</Badge>}
+        {locked && (
+          <Badge size="sm" color="brand">
+            Locked
+          </Badge>
+        )}
       </div>
       <div>
         <p className="text-sm text-tertiary">{locked ? "Agreed cash" : "Latest offer"}</p>
@@ -218,7 +296,10 @@ function PriceCard({ offers, fair, status, price }: { offers: ChatOffer[]; fair:
           )}
           <div className="absolute -inset-y-1 w-0.5 bg-fg-quaternary" style={{ left: pos(fair) }} />
           {price > 0 && (
-            <div className="absolute top-1/2 size-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-brand-solid ring-2 ring-white transition-all duration-500" style={{ left: pos(price) }} />
+            <div
+              className="absolute top-1/2 size-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-brand-solid ring-2 ring-white transition-all duration-500"
+              style={{ left: pos(price) }}
+            />
           )}
         </div>
         <div className="flex justify-between text-xs text-quaternary tabular-nums">
@@ -227,7 +308,7 @@ function PriceCard({ offers, fair, status, price }: { offers: ChatOffer[]; fair:
         </div>
       </div>
       <dl className="space-y-2 text-sm">
-        <Row label="Fair price (per reel, from real views)" value={fmtUsd(fair)} strong />
+        <Row label={`Fair for ${describeDeliverables(ds)} (from real views)`} value={fmtUsd(fair)} strong />
         <Row label="Brand opened" value={opened !== undefined ? fmtUsd(opened) : "-"} />
         <Row label="Creator asked" value={asked !== undefined ? fmtUsd(asked) : "-"} />
       </dl>
@@ -235,7 +316,7 @@ function PriceCard({ offers, fair, status, price }: { offers: ChatOffer[]; fair:
   );
 }
 
-function Timeline({ status }: { status: DealStatus }) {
+function Timeline({ status, needsCall }: { status: DealStatus; needsCall: boolean }) {
   const at = status === "refunded" ? 2 : status === "walked_away" ? 0 : STEPS.findIndex((s) => s.status === status);
   return (
     <div className={cx(card, "p-5")}>
@@ -264,8 +345,10 @@ function Timeline({ status }: { status: DealStatus }) {
                 {failed && <XClose className="size-3.5 text-error-primary" />}
               </span>
               <div className="-mt-0.5">
-                <p className={cx("text-sm font-semibold", done || current ? "text-primary" : "text-quaternary")}>{failed ? "No deal" : s.label}</p>
-                <p className="text-xs text-tertiary">{failed ? "The agents could not meet" : s.hint}</p>
+                <p className={cx("text-sm font-semibold", done || current ? "text-primary" : "text-quaternary")}>
+                  {failed ? (needsCall ? "Needs your call" : "No deal") : s.label}
+                </p>
+                <p className="text-xs text-tertiary">{failed ? (needsCall ? "Budgets do not overlap yet" : "The agents could not meet") : s.hint}</p>
               </div>
             </li>
           );
@@ -284,24 +367,93 @@ function Row({ label, value, strong }: { label: string; value: string; strong?: 
   );
 }
 
-function Action({ d }: { d: DealState }) {
+function Action({ d, needsCall , perspective = "platform" }: { d: DealState; needsCall: boolean ; perspective?: Perspective }) {
   const full = "w-full";
-  if (d.busy) return <Button className={full} isLoading showTextWhileLoading>Talking to Stripe</Button>;
+  if (d.busy)
+    return (
+      <Button className={full} isLoading showTextWhileLoading>
+        Talking to Stripe
+      </Button>
+    );
   switch (d.status) {
     case "negotiating":
-      return <Button className={full} color="secondary" isDisabled>Agents are negotiating</Button>;
+      return (
+        <Button className={full} color="secondary" isDisabled>
+          Agents are negotiating
+        </Button>
+      );
     case "agreed":
-      return <Button className={full} iconLeading={CreditCard01} onClick={d.pay}>Pay {fmtUsd(d.price)} with Stripe</Button>;
+      return <ApproveStep d={d} perspective={perspective} />;
     case "held":
       return (
         <div className="space-y-2">
-          <Button className={full} iconLeading={CheckVerified01} onClick={d.markLive}>Mark post as live</Button>
+          <Button className={full} iconLeading={CheckVerified01} onClick={d.markLive}>
+            Mark post as live
+          </Button>
           <p className="text-xs text-tertiary">Demo stand-in for the automatic post check. Releases the payout.</p>
         </div>
       );
     case "walked_away":
-      return <Button className={full} iconLeading={RefreshCw01} onClick={d.restart}>Negotiate again</Button>;
+      if (needsCall) return <p className="text-sm text-tertiary">Pick one of the options in Needs your call to try again.</p>;
+      return (
+        <Button className={full} iconLeading={RefreshCw01} onClick={d.restart}>
+          Negotiate again
+        </Button>
+      );
     default:
-      return <Button className={full} color="secondary" iconLeading={RefreshCw01} onClick={d.restart}>Run a new deal</Button>;
+      return (
+        <Button className={full} color="secondary" iconLeading={RefreshCw01} onClick={d.restart}>
+          Run a new deal
+        </Button>
+      );
   }
+}
+
+function ApproveStep({ d, perspective }: { d: DealState; perspective: Perspective }) {
+  const both = d.approvals.brand && d.approvals.creator;
+  // The creator only signs for themselves; the brand side shows as a status.
+  const canAct = (side: "brand" | "creator") => perspective === "platform" || side === perspective;
+  const sides: {
+    side: "brand" | "creator";
+    label: string;
+    icon: typeof Building02;
+  }[] = [
+    { side: "brand", label: "Brand accepts", icon: Building02 },
+    { side: "creator", label: "Creator accepts", icon: User01 },
+  ];
+  return (
+    <div className="space-y-3">
+      <p className="text-xs text-tertiary">Both humans sign off on the terms before any money moves.</p>
+      <div className="grid grid-cols-2 gap-2">
+        {sides.map(({ side, label, icon }) =>
+          d.approvals[side] ? (
+            <span
+              key={side}
+              className="flex items-center justify-center gap-1.5 rounded-lg bg-success-secondary px-3 py-2 text-sm font-semibold text-success-primary ring-1 ring-success ring-inset animate-in fade-in duration-200"
+            >
+              <Check className="size-4" />
+              {side === "brand" ? "Brand" : "Creator"} accepted
+            </span>
+          ) : canAct(side) ? (
+            <Button key={side} size="sm" color={perspective === "creator" ? "primary" : "secondary"} iconLeading={icon} onClick={() => d.approve(side)}>
+              {perspective === "creator" ? "Accept this deal" : label}
+            </Button>
+          ) : (
+            <span key={side} className="flex items-center justify-center rounded-lg px-3 py-2 text-sm text-tertiary ring-1 ring-secondary ring-inset">
+              Waiting for {side}
+            </span>
+          ),
+        )}
+      </div>
+      {both && perspective === "creator" ? (
+        <p className="text-xs text-tertiary">Both accepted. The brand pays next, and Stripe holds the money until your post is live.</p>
+      ) : both ? (
+        <Button className="w-full" iconLeading={CreditCard01} onClick={d.pay}>
+          Pay {fmtUsd(d.price)} with Stripe
+        </Button>
+      ) : (
+        <p className="text-xs text-quaternary">Payment unlocks once both sides accept.</p>
+      )}
+    </div>
+  );
 }

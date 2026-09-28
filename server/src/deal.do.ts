@@ -10,7 +10,7 @@ import { createClient } from './agents/llm';
 import { makeStripe, ensureCreatorAccount, creatorTransfersStatus, chargeBrand, payoutCreator, refundBrand } from './stripe';
 import { verifyPostLive, mockVerify, type VerifyResult } from './verify';
 import { fail } from './campaign.do';
-import { profileFromScraped, brandForCreator } from './pricing';
+import { profileFromScraped, brandForCreator, creatorForBrand } from './pricing';
 
 // ---- negotiation strategy -----------------------------------------------------------------------
 // LLM (OpenAI) when OPENAI_API_KEY is set and LLM_MODE != 'off', otherwise the deterministic engine.
@@ -47,6 +47,8 @@ export type CreateDealArgs = {
   creator?: Creator;
   /** Full profile from creator onboarding. Wins over the bundled and scraped profiles. */
   creatorProfile?: CreatorProfile;
+  /** Web app deals: both sides must POST /deals/:id/approve before fund. Agent flows leave it off. */
+  requireApproval?: boolean;
 };
 
 /** Stored deal: the shared Deal contract plus fields only this side needs. */
@@ -55,6 +57,10 @@ export type DealRecord = Deal & {
   stripe?: Deal['stripe'] & { chargeId?: string };
   /** When a held deal auto-refunds if the post was never verified (ISO). */
   holdUntil?: string;
+  /** No price could close it: brand max below creator minimum by this much cash (walkReason budget_gap). */
+  gap_usd?: number;
+  /** Present when the deal needs both humans to accept before payment. */
+  approvals?: { brand: boolean; creator: boolean };
   /** Profile used to negotiate when the creator has no bundled profile (onboarded or derived from
    *  the scraped Creator). Kept so the market layer can score the deal later. */
   creatorProfile?: CreatorProfile;
@@ -96,9 +102,10 @@ export class DealDO extends DurableObject<Env> {
     const campaign = this.campaign(args.campaignId);
     const baseBrand = BRANDS[args.brandSlug] ?? (await campaign.brandProfile());
     if (!baseBrand) fail(404, `deal ${args.dealId}: unknown brand ${args.brandSlug}`);
-    const creator = args.creatorProfile ?? CREATORS[args.creatorSlug] ?? (args.creator ? profileFromScraped(args.creatorSlug, args.creator) : null);
-    if (!creator) fail(404, `deal ${args.dealId}: unknown creator ${args.creatorSlug} (pass a Creator object to negotiate with a scraped profile)`);
-    // Cap the brand at 1.3x this creator's own rate card, so offers follow real reach.
+    const baseCreator = args.creatorProfile ?? CREATORS[args.creatorSlug] ?? (args.creator ? profileFromScraped(args.creatorSlug, args.creator) : null);
+    if (!baseCreator) fail(404, `deal ${args.dealId}: unknown creator ${args.creatorSlug} (pass a Creator object to negotiate with a scraped profile)`);
+    // Favorite brands get the creator's lower floors; then cap the brand at 1.3x the creator's rate card.
+    const creator = creatorForBrand(baseCreator, baseBrand);
     const brand = brandForCreator(baseBrand, creator);
 
     const snapshot = await campaign.get(); // 404 if the campaign was never created
@@ -117,6 +124,7 @@ export class DealDO extends DurableObject<Env> {
       updatedAt: ts,
     };
     if (!CREATORS[args.creatorSlug]) deal.creatorProfile = creator;
+    if (args.requireApproval) deal.approvals = { brand: false, creator: false };
     this.save(deal);
     await this.market().register({ dealId: deal.dealId, campaignId: deal.campaignId, brandSlug: deal.brandSlug, creatorSlug: deal.creatorSlug, createdAt: ts });
 
@@ -156,7 +164,9 @@ export class DealDO extends DurableObject<Env> {
       }
     } else {
       deal.status = 'walked_away';
-      deal.walkReason = 'negotiation';
+      const r = result as NegotiationResult & { walk_reason?: string; gap_usd?: number };
+      deal.walkReason = r.walk_reason ?? 'negotiation';
+      if (r.gap_usd) deal.gap_usd = r.gap_usd;
       deal.budgetLeft = (await campaign.note(deal.dealId, deal.creatorSlug, 'walked_away')).budgetLeft;
     }
     deal.updatedAt = new Date().toISOString();
@@ -195,6 +205,15 @@ export class DealDO extends DurableObject<Env> {
     return { deal, brandSlug: deal.brandSlug, creatorSlug: deal.creatorSlug, creatorProfile };
   }
 
+  /** A human accepts the agreed terms for their side. Payment unlocks when both have. */
+  approve(side: 'brand' | 'creator'): DealRecord {
+    const deal = this.must();
+    this.require(deal, 'agreed');
+    deal.approvals = { brand: false, creator: false, ...deal.approvals, [side]: true };
+    this.save(deal);
+    return deal;
+  }
+
   // ---- money -----------------------------------------------------------------------------------
 
   /** agreed -> held. Creates the creator's Connect account (once) and charges the brand. */
@@ -203,6 +222,9 @@ export class DealDO extends DurableObject<Env> {
     this.require(current, 'agreed');
     if (current.selection === 'not_selected') {
       fail(409, `deal ${current.dealId} was not selected by the market match (brand rank ${current.ranks?.brand ?? '?'}, creator rank ${current.ranks?.creator ?? '?'}). Re-run POST /market/match or fund a selected deal`);
+    }
+    if (current.approvals && !(current.approvals.brand && current.approvals.creator)) {
+      fail(409, `deal ${current.dealId}: both sides must accept before payment (brand ${current.approvals.brand ? 'accepted' : 'pending'}, creator ${current.approvals.creator ? 'accepted' : 'pending'})`);
     }
     if (!(current.price >= 0.5)) {
       fail(422, `deal ${current.dealId}: cash part is $${current.price}. Product-only deals have nothing to charge (Stripe minimum is $0.50)`);

@@ -5,14 +5,28 @@ import type { Creator, DealStatus } from "@shared/contract";
 import { buildCreatorProfile } from "@/lib/onboarding/profiles";
 import { loadCreator, type SavedCampaign } from "@/lib/onboarding/store";
 import { fmtUsd } from "@/lib/format";
-import { api, describeExtras, type ServerDeal } from "./api";
+import { api, type Approvals, describeExtras, type ServerDeal, type ServerDeliverable, type ServerPackage } from "./api";
 import { ensureCampaign } from "./campaign";
 import { negotiate } from "./negotiate";
 
 export const PLATFORM_FEE = 0.1;
 const POLL_MS = 2500;
 
-export type ChatOffer = { from: "brand" | "creator"; amount: number; message: string; round: number; extras: string[]; final: boolean };
+export type ChatOffer = {
+  from: "brand" | "creator";
+  amount: number;
+  message: string;
+  round: number;
+  extras: string[];
+  final: boolean;
+  pkg?: ServerPackage;
+  deliverables: ServerDeliverable[];
+  usageRights?: string;
+  exclusivity?: { category: string; days: number };
+  deadline?: string;
+  valueForCreator?: number;
+};
+export type Side = "brand" | "creator";
 export type DealEvent = { status: DealStatus; text: string };
 
 export interface DealState {
@@ -28,8 +42,15 @@ export interface DealState {
   deliverables?: string;
   deadline?: string;
   stripe?: ServerDeal["stripe"];
+  walkReason?: string;
+  /** Cash gap in USD when the deal ended with no overlap (walkReason "budget_gap"). */
+  gapUsd?: number;
+  brandMaxUsd?: number;
+  creatorMinUsd?: number;
+  approvals: Approvals;
   busy: boolean;
   error: string | null;
+  approve: (side: Side) => void;
   pay: () => void;
   markLive: () => void;
   restart: () => void;
@@ -43,18 +64,46 @@ function eventsFor(status: DealStatus, price: number, extras: string[], handle: 
   const order: DealStatus[] = ["agreed", "held", "paid_out"];
   const reached = status === "refunded" ? 2 : order.indexOf(status) + 1;
   const out: DealEvent[] = [];
-  if (reached >= 1) out.push({ status: "agreed", text: `Deal agreed at ${fmtUsd(price)} cash${extras.length ? ` + ${extras.join(", ")}` : ""}` });
-  if (reached >= 2) out.push({ status: "held", text: `Brand paid ${fmtUsd(price)} with Stripe. The money is held until the post is live.` });
-  if (status === "paid_out") out.push({ status: "paid_out", text: `Post verified. Paid ${fmtUsd(net(price))} to ${handle}, platform kept ${fmtUsd(price - net(price))}` });
-  if (status === "refunded") out.push({ status: "refunded", text: "Post never went live. The brand was refunded." });
-  if (status === "walked_away") out.push({ status: "walked_away", text: walkReason === "budget" ? "No deal: over the brand's remaining budget" : "No deal this time. Both sides held their line." });
+  if (reached >= 1)
+    out.push({
+      status: "agreed",
+      text: `Deal agreed at ${fmtUsd(price)} cash${extras.length ? ` + ${extras.join(", ")}` : ""}`,
+    });
+  if (reached >= 2)
+    out.push({
+      status: "held",
+      text: `Brand paid ${fmtUsd(price)} with Stripe. The money is held until the post is live.`,
+    });
+  if (status === "paid_out")
+    out.push({
+      status: "paid_out",
+      text: `Post verified. Paid ${fmtUsd(net(price))} to ${handle}, platform kept ${fmtUsd(price - net(price))}`,
+    });
+  if (status === "refunded")
+    out.push({
+      status: "refunded",
+      text: "Post never went live. The brand was refunded.",
+    });
+  if (status === "walked_away")
+    out.push({
+      status: "walked_away",
+      text:
+        walkReason === "budget_gap"
+          ? "Paused: the budgets do not overlap yet. Needs your call."
+          : walkReason === "budget"
+            ? "No deal: over the brand's remaining budget"
+            : "No deal this time. Both sides held their line.",
+    });
   return out;
 }
 
 // Starts are shared across React strict-mode double effects so one visit creates one deal.
 const starts = new Map<string, Promise<{ deal: ServerDeal; campaign: SavedCampaign }>>();
 
-export function useDeal(creator: Creator): DealState {
+/** Open an existing deal (creator inbox) instead of starting a new negotiation. */
+export type ExistingDeal = { dealId: string; brandName: string };
+
+export function useDeal(creator: Creator, existing?: ExistingDeal): DealState {
   const handle = creator.handle.replace("@", "");
   const [nonce] = useState(() => Math.random().toString(36).slice(2));
   const [run, setRun] = useState(0);
@@ -63,6 +112,10 @@ export function useDeal(creator: Creator): DealState {
   const [campaign, setCampaign] = useState<SavedCampaign | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [localApprovals, setLocalApprovals] = useState<Approvals>({
+    brand: false,
+    creator: false,
+  });
   const offline = useScriptedDeal(creator, mode === "offline");
 
   useEffect(() => {
@@ -72,10 +125,19 @@ export function useDeal(creator: Creator): DealState {
       starts.set(
         key,
         (async () => {
+          if (existing && run === 0) {
+            const d = await api.getDeal(existing.dealId);
+            return { deal: d, campaign: { campaignId: d.campaignId, brandName: existing.brandName, budgetTotal: 0 } };
+          }
           const c = await ensureCampaign();
           const saved = loadCreator();
           const profile = saved && saved.handle.toLowerCase() === handle.toLowerCase() ? buildCreatorProfile(saved, creator) : undefined;
-          const d = await api.startDeal({ campaignId: c.campaignId, creatorSlug: handle, creator, creatorProfile: profile });
+          const d = await api.startDeal({
+            campaignId: c.campaignId,
+            creatorSlug: handle,
+            creator,
+            creatorProfile: profile,
+          });
           return { deal: d, campaign: c };
         })(),
       );
@@ -92,13 +154,15 @@ export function useDeal(creator: Creator): DealState {
     return () => {
       cancelled = true;
     };
-  }, [nonce, run, handle, creator]);
+  }, [nonce, run, handle, creator, existing]);
 
   // Poll the transcript while the agents talk.
   const dealId = deal?.dealId;
   const negotiating = deal?.status === "negotiating";
+  // In the inbox the other side can act at any time (accept, pay), so keep following the deal.
+  const follow = negotiating || (!!existing && deal?.status !== "paid_out" && deal?.status !== "walked_away" && deal?.status !== "refunded");
   useEffect(() => {
-    if (mode !== "live" || !dealId || !negotiating) return;
+    if (mode !== "live" || !dealId || !follow) return;
     const t = setInterval(async () => {
       try {
         setDeal(await api.getDeal(dealId));
@@ -107,17 +171,28 @@ export function useDeal(creator: Creator): DealState {
       }
     }, POLL_MS);
     return () => clearInterval(t);
-  }, [mode, dealId, negotiating]);
+  }, [mode, dealId, follow]);
 
   const act = useCallback(
-    async (fn: (id: string) => Promise<ServerDeal & { error?: string; verify?: { verified: boolean; reason?: string } }>) => {
+    async (
+      fn: (id: string) => Promise<
+        ServerDeal & {
+          error?: string;
+          verify?: { verified: boolean; reason?: string };
+        }
+      >,
+    ) => {
       if (!deal) return;
       setBusy(true);
       setError(null);
       try {
         const next = await fn(deal.dealId);
         if (next.verify && !next.verify.verified) setError(`Post not verified: ${next.verify.reason ?? "check failed"}`);
-        setDeal((d) => ({ ...(d as ServerDeal), ...next, turns: d?.turns ?? [] }));
+        setDeal((d) => ({
+          ...(d as ServerDeal),
+          ...next,
+          turns: d?.turns ?? [],
+        }));
       } catch (e) {
         setError(e instanceof Error ? e.message : String(e));
       } finally {
@@ -137,8 +212,14 @@ export function useDeal(creator: Creator): DealState {
     round: t.round,
     extras: describeExtras(t.package),
     final: t.status === "accept" || t.status === "walk_away",
+    pkg: t.package,
+    deliverables: t.deliverables ?? [],
+    usageRights: t.usage_rights,
+    exclusivity: t.exclusivity,
+    deadline: t.deadline,
+    valueForCreator: t.value_for_creator_usd,
   }));
-  const last = turns[turns.length - 1] as (typeof turns)[number] & { deliverables?: { type: string; qty: number }[]; deadline?: string } | undefined;
+  const last = turns[turns.length - 1];
   const status = deal?.status ?? "negotiating";
   const price = deal?.price ?? 0;
   const accepted = deal?.acceptedOffer?.package;
@@ -155,13 +236,36 @@ export function useDeal(creator: Creator): DealState {
     deliverables: last?.deliverables?.map((d) => plural(d.qty, d.type)).join(" + "),
     deadline: last?.deadline,
     stripe: deal?.stripe,
+    walkReason: deal?.walkReason,
+    gapUsd: typeof deal?.gap_usd === "number" ? deal.gap_usd : undefined,
+    brandMaxUsd: deal?.brand_max_usd,
+    creatorMinUsd: deal?.creator_min_usd,
+    approvals: deal?.approvals ?? localApprovals,
     busy,
     error,
+    approve: async (side) => {
+      if (!deal) return;
+      setError(null);
+      try {
+        const next = await api.approve(deal.dealId, side);
+        if (next?.approvals)
+          setDeal((d) => ({
+            ...(d as ServerDeal),
+            ...next,
+            turns: next.turns?.length ? next.turns : (d?.turns ?? []),
+          }));
+        else setLocalApprovals((a) => ({ ...a, [side]: true }));
+      } catch {
+        // Endpoint missing or unreachable: keep the demo moving with a local flag.
+        setLocalApprovals((a) => ({ ...a, [side]: true }));
+      }
+    },
     pay: () => act(api.fund),
     markLive: () => act((id) => api.verify(id, `https://www.instagram.com/${handle}/`)),
     restart: () => {
       setDeal(null);
       setError(null);
+      setLocalApprovals({ brand: false, creator: false });
       setMode("connecting");
       setRun((r) => r + 1);
     },
@@ -171,12 +275,20 @@ export function useDeal(creator: Creator): DealState {
 // ---------------- offline fallback: scripted negotiation, fake money ----------------
 
 const DELAY_MS = 1600;
+const OFFLINE_DELIVERABLES: ServerDeliverable[] = [
+  { type: "reel", qty: 1 },
+  { type: "story", qty: 1 },
+];
 
 function useScriptedDeal(creator: Creator, enabled: boolean): DealState {
   const s = useMemo(() => negotiate(creator, `offline-${creator.handle}`), [creator]);
   const [shown, setShown] = useState(0);
   const [status, setStatus] = useState<DealStatus>("negotiating");
   const [busy, setBusy] = useState(false);
+  const [approvals, setApprovals] = useState<Approvals>({
+    brand: false,
+    creator: false,
+  });
 
   useEffect(() => {
     if (!enabled || status !== "negotiating") return;
@@ -184,7 +296,24 @@ function useScriptedDeal(creator: Creator, enabled: boolean): DealState {
     return () => clearTimeout(t);
   }, [enabled, shown, status, s]);
 
-  const offers: ChatOffer[] = s.slice(0, shown).map((o, i) => ({ from: o.from, amount: o.amount, message: o.message, round: Math.floor(i / 2) + 1, extras: [], final: i === s.length - 1 }));
+  const offers: ChatOffer[] = s.slice(0, shown).map((o, i) => ({
+    from: o.from,
+    amount: o.amount,
+    message: o.message,
+    round: Math.floor(i / 2) + 1,
+    extras: [],
+    final: i === s.length - 1,
+    pkg: {
+      cash_usd: o.amount,
+      product: [],
+      affiliate_pct: 0,
+      store_credit_usd: 0,
+      custom: [],
+    },
+    deliverables: OFFLINE_DELIVERABLES,
+    usageRights: "organic_only",
+    exclusivity: { category: "apparel", days: 30 },
+  }));
   const agreed = s[s.length - 1].amount;
   const price = status === "negotiating" ? (offers[offers.length - 1]?.amount ?? 0) : agreed;
   const step = (next: DealStatus) => {
@@ -204,11 +333,14 @@ function useScriptedDeal(creator: Creator, enabled: boolean): DealState {
     events: eventsFor(status, agreed, [], creator.handle),
     typing: status === "negotiating" && shown < s.length ? s[shown].from : null,
     deliverables: "1 reel + 1 story",
+    approvals,
     busy,
     error: null,
+    approve: (side) => setApprovals((a) => ({ ...a, [side]: true })),
     pay: () => step("held"),
     markLive: () => step("paid_out"),
     restart: () => {
+      setApprovals({ brand: false, creator: false });
       setShown(0);
       setStatus("negotiating");
     },

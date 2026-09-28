@@ -21,9 +21,14 @@ export function BudgetCard({ fairTotal, count }: { fairTotal: number; count: num
             <span className="font-semibold text-primary">{fmtUsd(fairTotal)}</span>.
           </p>
         </div>
-        <Button href="/brand/setup" size="sm" color="secondary">
-          {brand ? "Edit campaign" : "Set up your campaign"}
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button href="/brand/setup" size="sm" color="secondary">
+            {brand ? "Edit campaign" : "Set up your campaign"}
+          </Button>
+          <Button href="/brand/campaign" size="sm" color="primary">
+            Run campaign with Brainbase
+          </Button>
+        </div>
       </div>
       <ProgressBar value={Math.min(100, (fairTotal / budget) * 100)} />
     </div>

@@ -28,6 +28,22 @@ export function brandForCreator(brand: BrandProfile, creator: CreatorProfile): B
   };
 }
 
+/**
+ * A creator's favorite brands get the creator's lower "favorite" floors for that deal only.
+ * Match is case-insensitive on the brand name (either contains the other), e.g. "OpenAI" vs "OpenAI Inc".
+ */
+export function creatorForBrand(creator: CreatorProfile, brand: BrandProfile): CreatorProfile {
+  const pref = creator.private.preferred_brands;
+  if (!pref?.names.length) return creator;
+  const name = brand.public.name.toLowerCase().trim();
+  const hit = pref.names.some((n) => {
+    const x = n.toLowerCase().trim();
+    return x.length > 1 && (name.includes(x) || x.includes(name));
+  });
+  if (!hit) return creator;
+  return { ...creator, private: { ...creator.private, floor_usd: pref.floor_usd } };
+}
+
 /** Minimal CreatorProfile from Raha's scraper output, priced around fairPrice. */
 export function profileFromScraped(slug: string, c: Creator): CreatorProfile {
   const fair = Math.max(1, Math.round(c.fairPrice));

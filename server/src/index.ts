@@ -12,6 +12,8 @@ import { matchMarket } from './market/match';
 import Stripe from 'stripe';
 import { makeStripe } from './stripe';
 import { mountMcp } from './mcp';
+import { mountBrainbase } from './brainbase';
+import { onboard } from './onboard';
 export { DealDO } from './deal.do';
 export { CampaignDO } from './campaign.do';
 export { MarketDO } from './market.do';
@@ -33,6 +35,10 @@ export type Env = {
   HOLD_DEADLINE_SECONDS?: string;
   /** Signing secret for POST /stripe/webhook (from `stripe listen` or the dashboard). */
   STRIPE_WEBHOOK_SECRET?: string;
+  /** Brainbase PAT for /brainbase/* (src/brainbase.ts). */
+  BRAINBASE_API_KEY?: string;
+  /** Brand-manager agent id; defaults to brainbase/brainbase.agent.yaml. */
+  BRAINBASE_AGENT_ID?: string;
 };
 
 type C = Context<{ Bindings: Env }>;
@@ -144,8 +150,16 @@ app.post('/deals', async (c) => {
   const creatorProfile = b.creatorProfile !== undefined ? creatorProfileFromBody(b.creatorProfile) : undefined;
   const campaign = await campaignStub(c, campaignId).get();
   const dealId = crypto.randomUUID();
-  const deal = await dealStub(c, dealId).create({ dealId, campaignId, brandSlug: campaign.brandSlug, creatorSlug, creator, creatorProfile });
+  const requireApproval = b.requireApproval === true;
+  const deal = await dealStub(c, dealId).create({ dealId, campaignId, brandSlug: campaign.brandSlug, creatorSlug, creator, creatorProfile, requireApproval });
   return c.json(deal, 201);
+});
+
+app.post('/deals/:id/approve', async (c) => {
+  const b = await body(c);
+  const side = str(b, 'side');
+  if (side !== 'brand' && side !== 'creator') return c.json({ error: 'side must be "brand" or "creator"' }, 400);
+  return c.json(await dealStub(c, c.req.param('id')).approve(side));
 });
 
 app.get('/deals/:id', async (c) => c.json(await dealStub(c, c.req.param('id')).get()));
@@ -244,6 +258,41 @@ app.get('/campaigns/:id/evaluation', async (c) => {
   return c.json({ campaignId, brandSlug: campaign.brandSlug, budgetLeft: campaign.budgetLeft, ranked });
 });
 
+// Creator inbox: every conversation this creator's agent is in, newest activity first.
+app.get('/creators/:slug/deals', async (c) => {
+  const rows = await marketStub(c).dealsForCreator(c.req.param('slug'));
+  const names = new Map<string, string>();
+  const brandName = async (campaignId: string, brandSlug: string) => {
+    if (BRANDS[brandSlug]) return BRANDS[brandSlug].public.name;
+    if (!names.has(campaignId)) names.set(campaignId, (await campaignStub(c, campaignId).brandProfile())?.public.name ?? brandSlug);
+    return names.get(campaignId)!;
+  };
+  const deals = await Promise.all(
+    rows.map(async (r) => {
+      const d = await dealStub(c, r.dealId).get();
+      const last = d.turns[d.turns.length - 1];
+      return {
+        dealId: d.dealId,
+        campaignId: d.campaignId,
+        brandSlug: d.brandSlug,
+        brandName: await brandName(d.campaignId, d.brandSlug),
+        status: d.status,
+        price: d.price,
+        walkReason: d.walkReason,
+        gap_usd: d.gap_usd,
+        approvals: d.approvals,
+        turns: d.turns.length,
+        lastFrom: last?.from,
+        lastCash: last?.package.cash_usd,
+        lastMessage: last?.message,
+        updatedAt: d.updatedAt,
+      };
+    }),
+  );
+  deals.sort((a, b) => (b.updatedAt ?? '').localeCompare(a.updatedAt ?? ''));
+  return c.json({ creatorSlug: c.req.param('slug'), deals });
+});
+
 app.get('/creators/:slug/evaluation', async (c) => {
   const creatorSlug = c.req.param('slug');
   const scored = await scoreRows(c, await marketStub(c).dealsForCreator(creatorSlug));
@@ -307,6 +356,26 @@ app.post('/market/match', async (c) => {
   });
 });
 
+// ---- onboarding ----------------------------------------------------------------------------------
+
+// Free text (plus optional website / Instagram link) -> a filled BrandForm or CreatorForm (src/onboard.ts).
+app.post('/onboard', async (c) => {
+  const b = await body(c);
+  const side = b.side;
+  if (side !== 'brand' && side !== 'creator') return c.json({ error: 'side must be "brand" or "creator"' }, 400);
+  const text = typeof b.text === 'string' ? b.text.trim() : '';
+  if (!text) return c.json({ error: 'text is required' }, 400);
+  if (!c.env.OPENAI_API_KEY) return c.json({ error: 'OPENAI_API_KEY is not set on the server' }, 503);
+  return c.json(await onboard({
+    apiKey: c.env.OPENAI_API_KEY,
+    model: c.env.OPENAI_MODEL,
+    side,
+    text,
+    url: typeof b.url === 'string' ? b.url : undefined,
+    current: isObj(b.current) ? b.current : undefined,
+  }));
+});
+
 // ---- admin ---------------------------------------------------------------------------------------
 
 app.post('/admin/reset', async (c) => {
@@ -317,5 +386,6 @@ app.post('/admin/reset', async (c) => {
 });
 
 mountMcp(app); // MCP Streamable HTTP endpoint: POST /mcp (src/mcp.ts)
+mountBrainbase(app); // Brainbase manager agent proxy: /brainbase/* (src/brainbase.ts)
 
 export default app;
