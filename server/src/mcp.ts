@@ -35,6 +35,7 @@ export const TOOLS = [
   { name: 'evaluate_campaign', description: 'Brand view: the campaign\'s agreed deals ranked best first by brand surplus (value minus cash), with implied CPM and the package. Never shows creator-side numbers.', inputSchema: obj({ campaignId: S.id('campaign id') }, ['campaignId']) },
   { name: 'evaluate_creator', description: 'Creator view: every agreed deal for this creator across all campaigns, ranked best first by creator surplus. Never shows brand-side caps.', inputSchema: obj({ creatorSlug: S.id('creator slug') }, ['creatorSlug']) },
   { name: 'match_market', description: 'Run the market match over several campaigns: ranks every agreed deal for both sides, picks which go through (budget, headcount per brand, creator slots), and marks each deal selected / not_selected. fund_deal then refuses not_selected deals (409).', inputSchema: obj({ campaignIds: { type: 'array', items: { type: 'string' }, description: 'campaign ids to match together' }, headcount: { type: 'number', description: 'max creators per brand, default 3' } }, ['campaignIds']) },
+  { name: 'finalize_campaign', description: 'Brand\'s agent picks the winners among the campaign\'s agreed deals (market match with headcount) and pays them automatically in Stripe test mode: a winner is paid now (status held) if the creator already accepted, otherwise the moment the creator accepts. Deals not picked walk away as not_selected and their budget is released. Safe to call again: returns the same winners and never pays twice.', inputSchema: obj({ campaignId: S.id('campaign id'), headcount: { type: 'number', description: 'how many creators to pick, default 1' } }, ['campaignId']) },
 ];
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -100,6 +101,8 @@ export function mountMcp(app: App) {
         if (ids.length === 0) throw new Error('campaignIds is required (string[])');
         return call(env, 'POST', '/market/match', { campaignIds: ids, ...(a.headcount !== undefined ? { headcount: Number(a.headcount) } : {}) });
       }
+      case 'finalize_campaign':
+        return call(env, 'POST', `/campaigns/${encodeURIComponent(str(a, 'campaignId'))}/finalize`, a.headcount !== undefined ? { headcount: Number(a.headcount) } : {});
       default:
         throw new Error(`unknown tool ${name}`);
     }

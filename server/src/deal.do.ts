@@ -9,7 +9,7 @@ import { runNegotiationLLM } from './agents/negotiate';
 import { createClient } from './agents/llm';
 import { makeStripe, ensureCreatorAccount, creatorTransfersStatus, chargeBrand, payoutCreator, refundBrand } from './stripe';
 import { verifyPostLive, mockVerify, type VerifyResult } from './verify';
-import { fail } from './campaign.do';
+import { fail, errMessage } from './campaign.do';
 import { profileFromScraped, brandForCreator, creatorForBrand, fitCheck } from './pricing';
 
 // ---- negotiation strategy -----------------------------------------------------------------------
@@ -66,6 +66,11 @@ export type DealRecord = Deal & {
   /** Profile used to negotiate when the creator has no bundled profile (onboarded or derived from
    *  the scraped Creator). Kept so the market layer can score the deal later. */
   creatorProfile?: CreatorProfile;
+  /** Set when POST /campaigns/:id/finalize picks this deal: the brand's agent pays as soon as both
+   *  sides have accepted. */
+  autopay?: boolean;
+  /** Last automatic payment failure (e.g. a Stripe error). The deal stays agreed. */
+  lastError?: string;
 };
 export type DealWithTurns = DealRecord & { turns: Turn[] };
 export type ApplySelectionArgs = {
@@ -311,13 +316,54 @@ export class DealDO extends DurableObject<Env> {
     return { deal, brandSlug: deal.brandSlug, creatorSlug: deal.creatorSlug, creatorProfile };
   }
 
-  /** A human accepts the agreed terms for their side. Payment unlocks when both have. */
-  approve(side: 'brand' | 'creator'): DealRecord {
+  /** A human accepts the agreed terms for their side. Payment unlocks when both have; on an autopay
+   *  deal the brand's agent pays right away (status becomes held). */
+  async approve(side: 'brand' | 'creator'): Promise<DealRecord> {
     const deal = this.must();
     this.require(deal, 'agreed');
     deal.approvals = { brand: false, creator: false, ...deal.approvals, [side]: true };
     this.save(deal);
+    return this.autopayIfReady();
+  }
+
+  /** Finalize winner: the brand's agent accepts for the brand and pays once the creator has accepted
+   *  (or right away when the deal needs no human approvals). Idempotent: a paid deal is returned as is. */
+  async pickAsWinner(): Promise<DealRecord> {
+    const deal = this.must();
+    if (deal.status !== 'agreed') return deal;
+    deal.selection = 'selected';
+    deal.autopay = true;
+    if (deal.approvals) deal.approvals = { ...deal.approvals, brand: true };
+    this.save(deal);
+    return this.autopayIfReady();
+  }
+
+  /** Finalize: agreed but not picked. agreed -> walked_away, its budget reservation is released. */
+  async passOver(): Promise<DealRecord> {
+    const deal = this.must();
+    if (deal.status !== 'agreed') return deal;
+    deal.status = 'walked_away';
+    deal.walkReason = 'not_selected';
+    deal.selection = 'not_selected';
+    deal.budgetLeft = (await this.campaign(deal.campaignId).releaseUnselected(deal.dealId)).budgetLeft;
+    this.save(deal);
     return deal;
+  }
+
+  /** Pays an autopay deal once both sides accepted. A failed charge keeps it agreed with lastError. */
+  private async autopayIfReady(): Promise<DealRecord> {
+    const deal = this.must();
+    const accepted = !deal.approvals || (deal.approvals.brand && deal.approvals.creator);
+    if (!deal.autopay || !accepted || deal.status !== 'agreed') return deal;
+    try {
+      return await this.fund();
+    } catch (e) {
+      const d = this.must();
+      d.lastError = errMessage(e);
+      this.save(d);
+      console.error(`deal ${d.dealId}: autopay failed: ${d.lastError}`);
+      return d;
+    }
   }
 
   // ---- money -----------------------------------------------------------------------------------
@@ -358,6 +404,7 @@ export class DealDO extends DurableObject<Env> {
       });
       deal.stripe = { ...deal.stripe, accountId, paymentIntentId, chargeId };
       deal.status = 'held';
+      delete deal.lastError;
       // Deadline: if the post is not verified in time, alarm() refunds the brand.
       const holdMs = (Number(this.env.HOLD_DEADLINE_SECONDS) || 7 * 86_400) * 1000;
       deal.holdUntil = new Date(Date.now() + holdMs).toISOString();

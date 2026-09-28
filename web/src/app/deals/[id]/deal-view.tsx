@@ -411,6 +411,7 @@ function Action({ d, needsCall , perspective = "platform" }: { d: DealState; nee
 
 function ApproveStep({ d, perspective }: { d: DealState; perspective: Perspective }) {
   const both = d.approvals.brand && d.approvals.creator;
+  const autopay = d.autopay && perspective === "brand";
   // The creator only signs for themselves; the brand side shows as a status.
   const canAct = (side: "brand" | "creator") => perspective === "platform" || side === perspective;
   const sides: {
@@ -423,7 +424,9 @@ function ApproveStep({ d, perspective }: { d: DealState; perspective: Perspectiv
   ];
   return (
     <div className="space-y-3">
-      <p className="text-xs text-tertiary">Both humans sign off on the terms before any money moves.</p>
+      <p className="text-xs text-tertiary">
+        {autopay ? "Your agent picked this creator and already accepted for you." : "Both humans sign off on the terms before any money moves."}
+      </p>
       <div className="grid grid-cols-2 gap-2">
         {sides.map(({ side, label, icon }) =>
           d.approvals[side] ? (
@@ -445,7 +448,16 @@ function ApproveStep({ d, perspective }: { d: DealState; perspective: Perspectiv
           ),
         )}
       </div>
-      {both && perspective === "creator" ? (
+      {perspective === "brand" && !d.approvals.creator && (
+        <Button className="w-full" size="sm" color="secondary" iconLeading={User01} onClick={() => d.approve("creator")}>
+          Accept as creator (demo)
+        </Button>
+      )}
+      {autopay && !(both && d.error) ? (
+        <p className="text-xs text-tertiary">
+          {both ? "The creator accepted. Your agent is paying with Stripe now." : "Your agent pays automatically as soon as the creator accepts."}
+        </p>
+      ) : both && perspective === "creator" ? (
         <p className="text-xs text-tertiary">Both accepted. The brand pays next, and Stripe holds the money until your post is live.</p>
       ) : both ? (
         <Button className="w-full" iconLeading={CreditCard01} onClick={d.pay}>

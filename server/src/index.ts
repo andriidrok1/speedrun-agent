@@ -2,12 +2,14 @@ import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import type { Context } from 'hono';
 import { DealDO } from './deal.do';
-import { CampaignDO, errMessage, errStatus } from './campaign.do';
+import { CampaignDO, errMessage, errStatus, type FinalizeRecord } from './campaign.do';
 import { MarketDO, type MarketDealRow } from './market.do';
 import { BRANDS } from './profiles.bundle';
-import type { BrandProfile, Creator, CreatorProfile } from './types';
+import type { BrandProfile, Creator, CreatorProfile, MarketInput } from './types';
 import { rankBrand, rankCreator } from './market/score';
 import { runMarketMatch, autoMatchIfReady, autoMatchLazy, scoreRows as scoreRowsEnv, brandView, creatorView, byDeal } from './market/run';
+import { matchMarket } from './market/match';
+import { fairPrice, otherReason, winnerReason } from './market/reasons';
 import Stripe from 'stripe';
 import { makeStripe } from './stripe';
 import { mountMcp } from './mcp';
@@ -303,6 +305,63 @@ app.get('/creators/:slug/evaluation', async (c) => {
   return c.json({ creatorSlug, ranked });
 });
 
+/** Market match over the given campaigns: ranks agreed deals for both sides, runs deferred
+ *  acceptance (budget, headcount per brand, creator slots) and writes selection/ranks on each deal.
+ *  Shared by POST /market/match and POST /campaigns/:id/finalize. */
+async function runMatch(c: C, campaignIds: string[], headcount: number) {
+  const campaigns = await Promise.all(campaignIds.map((id) => campaignStub(c, id).get()));
+  const scored = await scoreRowsEnv(c.env, await marketStub(c).dealsForCampaigns(campaignIds));
+  const lookup = byDeal(scored);
+
+  // Per-brand and per-creator preference lists (dealIds, best first) from the two rankers.
+  const brandRankings: Record<string, ReturnType<typeof brandView>[]> = {};
+  const brandRank = new Map<string, number>();
+  const brands: MarketInput['brands'] = campaigns.map((cv) => {
+    const mine = scored.filter((s) => s.deal.campaignId === cv.campaignId);
+    const ranked = rankBrand(mine.map((s) => s.brand));
+    ranked.forEach((r, i) => brandRank.set(r.dealId, i + 1));
+    brandRankings[cv.campaignId] = ranked.map((r, i) => brandView(lookup.get(r.dealId)!, i + 1));
+    // Demo: the whole campaign budget is on the table, not just what is left after reservations.
+    return { id: cv.campaignId, budget_usd: cv.budgetTotal, headcount, prefs: ranked.map((r) => r.dealId) };
+  });
+
+  const creatorRankings: Record<string, ReturnType<typeof creatorView>[]> = {};
+  const creatorRank = new Map<string, number>();
+  const creatorProfiles = new Map<string, CreatorProfile>();
+  const creatorSlugs = [...new Set(scored.map((s) => s.deal.creatorSlug))];
+  const creators: MarketInput['creators'] = [];
+  for (const slug of creatorSlugs) {
+    const mine = scored.filter((s) => s.deal.creatorSlug === slug);
+    const ranked = rankCreator(mine.map((s) => s.creator));
+    ranked.forEach((r, i) => creatorRank.set(r.dealId, i + 1));
+    creatorRankings[slug] = ranked.map((r, i) => creatorView(lookup.get(r.dealId)!, i + 1));
+    const profile = (await dealStub(c, mine[0].deal.dealId).scoreInputs()).creatorProfile;
+    creatorProfiles.set(slug, profile);
+    creators.push({ id: slug, slots: profile.public.availability?.slots_per_month ?? 2, prefs: ranked.map((r) => r.dealId) });
+  }
+
+  const input: MarketInput = {
+    brands, creators,
+    deals: scored.map((s) => ({ id: s.deal.dealId, brandId: s.deal.campaignId, creatorId: s.deal.creatorSlug, cash_usd: s.brand.cash_usd })),
+  };
+  const result = matchMarket(input);
+  const selectedSet = new Set(result.selected);
+  await Promise.all(scored.map((s) => dealStub(c, s.deal.dealId).setSelection(
+    selectedSet.has(s.deal.dealId) ? 'selected' : 'not_selected',
+    { brand: brandRank.get(s.deal.dealId) ?? 0, creator: creatorRank.get(s.deal.dealId) ?? 0 },
+  )));
+  return {
+    scored, brandRank, creatorProfiles, selectedSet,
+    response: {
+      selected: result.selected,
+      not_selected: scored.map((s) => s.deal.dealId).filter((id) => !selectedSet.has(id)),
+      explain: result.explain,
+      brandRankings,
+      creatorRankings,
+    },
+  };
+}
+
 app.post('/market/match', async (c) => {
   const b = await body(c);
   const campaignIds = Array.isArray(b.campaignIds) ? b.campaignIds.filter((x): x is string => typeof x === 'string' && !!x.trim()) : [];
@@ -310,6 +369,53 @@ app.post('/market/match', async (c) => {
   const headcount = b.headcount === undefined ? 3 : Number(b.headcount);
   if (!Number.isInteger(headcount) || headcount < 1) return c.json({ error: 'headcount must be a positive integer' }, 400);
   return c.json(await runMarketMatch(c.env, campaignIds, headcount));
+});
+
+// ---- finalize: the brand's agent picks winners and pays --------------------------------------------
+// Runs the match for one campaign. Winners get the brand's acceptance and autopay (paid now if the
+// creator already accepted, otherwise the moment she does). Everyone else walks away as not_selected
+// and their budget reservation goes back to the campaign. A second call returns the stored pick.
+
+app.post('/campaigns/:id/finalize', async (c) => {
+  const campaignId = c.req.param('id');
+  const b = await body(c);
+  const headcount = b.headcount === undefined ? 1 : Number(b.headcount);
+  if (!Number.isInteger(headcount) || headcount < 1) return c.json({ error: 'headcount must be a positive integer' }, 400);
+  const campaign = campaignStub(c, campaignId);
+  await campaign.get(); // 404 if the campaign was never created
+
+  let record: FinalizeRecord | null = await campaign.finalized();
+  if (!record) {
+    const m = await runMatch(c, [campaignId], headcount);
+    if (m.scored.length === 0) return c.json({ error: `campaign ${campaignId} has no agreed deals to finalize` }, 409);
+    const total = m.scored.length;
+    const pick = (s: (typeof m.scored)[number], winner: boolean) => {
+      const deliverables = s.deal.acceptedOffer?.deliverables ?? [];
+      const input = {
+        rank: m.brandRank.get(s.deal.dealId) ?? 0, total, cash_usd: s.brand.cash_usd, deliverables,
+        fair_usd: fairPrice(deliverables, m.creatorProfiles.get(s.deal.creatorSlug)),
+        explain: m.response.explain[s.deal.dealId],
+      };
+      return { dealId: s.deal.dealId, creatorSlug: s.deal.creatorSlug, price: s.deal.price, reason: winner ? winnerReason(input) : otherReason(input) };
+    };
+    const byRank = [...m.scored].sort((x, y) => (m.brandRank.get(x.deal.dealId) ?? 0) - (m.brandRank.get(y.deal.dealId) ?? 0));
+    record = {
+      headcount,
+      winners: byRank.filter((s) => m.selectedSet.has(s.deal.dealId)).map((s) => pick(s, true)),
+      others: byRank.filter((s) => !m.selectedSet.has(s.deal.dealId)).map((s) => pick(s, false)),
+    };
+    await campaign.setFinalized(record);
+  }
+  const final = record;
+
+  // Idempotent on repeat: pickAsWinner / passOver leave a deal alone once it moved past agreed.
+  const winners = await Promise.all(final.winners.map(async (w) => {
+    const deal = await dealStub(c, w.dealId).pickAsWinner();
+    return { dealId: w.dealId, creatorSlug: w.creatorSlug, price: w.price, status: deal.status, reason: w.reason };
+  }));
+  for (const o of final.others) await dealStub(c, o.dealId).passOver();
+  const others = final.others.map((o) => ({ dealId: o.dealId, creatorSlug: o.creatorSlug, price: o.price, reason: o.reason }));
+  return c.json({ campaignId, headcount: final.headcount, winners, others, budgetLeft: (await campaign.get()).budgetLeft });
 });
 
 // ---- onboarding ----------------------------------------------------------------------------------

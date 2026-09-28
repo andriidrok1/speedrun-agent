@@ -43,6 +43,11 @@ export type ServerDeal = {
   brand_max_usd?: number;
   creator_min_usd?: number;
   approvals?: Approvals;
+  /** Step 2: the brand's agent picked this deal and pays as soon as the creator accepts. */
+  autopay?: boolean;
+  /** Set when an automatic payment failed; the deal stays agreed. */
+  lastError?: string;
+  selection?: "selected" | "not_selected" | null;
   holdUntil?: string;
   acceptedOffer?: {
     package: ServerPackage;
@@ -155,6 +160,9 @@ export type BrandInboxItem = {
   fitReasons?: string[];
   gap_usd?: number;
   approvals?: { brand: boolean; creator: boolean };
+  autopay?: boolean;
+  lastError?: string;
+  selection?: "selected" | "not_selected" | null;
   turns: number;
   lastFrom?: "brand" | "creator";
   lastCash?: number;
@@ -165,3 +173,25 @@ export type BrandInboxItem = {
 /** Brand messenger: every conversation in one campaign, newest first. */
 export const campaignDeals = (campaignId: string) =>
   call<{ campaignId: string; deals: BrandInboxItem[] }>(`/campaigns/${encodeURIComponent(campaignId)}/deals`);
+
+
+// ---------------- step 2: the brand's agent picks the best creators and pays ----------------
+
+export type FinalizeWinner = { dealId: string; creatorSlug: string; price: number; status: DealStatus; reason: string };
+export type FinalizeOther = { dealId: string; creatorSlug: string; price: number; reason: string };
+export type FinalizeResult = { campaignId: string; headcount: number; winners: FinalizeWinner[]; others: FinalizeOther[]; budgetLeft: number };
+/** ok: the pick is made. Otherwise the HTTP status (404 = not deployed yet, 409 = nothing agreed yet) and the server's message. */
+export type FinalizeOutcome = { ok: true; result: FinalizeResult } | { ok: false; status: number; error: string };
+
+/** Idempotent: calling again returns the same pick. */
+export async function finalizeCampaign(campaignId: string, headcount: number): Promise<FinalizeOutcome> {
+  const res = await fetch(`${API}/campaigns/${encodeURIComponent(campaignId)}/finalize`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ headcount }),
+    cache: "no-store",
+  });
+  const data = (await res.json().catch(() => ({}))) as FinalizeResult & { error?: string };
+  if (!res.ok) return { ok: false, status: res.status, error: data.error ?? `${res.status} ${res.statusText}` };
+  return { ok: true, result: data };
+}

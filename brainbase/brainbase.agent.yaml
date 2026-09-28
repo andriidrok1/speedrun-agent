@@ -25,3 +25,27 @@ evals:
     judge_model: claude-sonnet-4-6
     judge_type: model
     output_shape: binary
+  - slug: respects-headcount
+    criteria: The agent hired and funded no more creators than the headcount given in the task. It only contacted a backup creator after an earlier conversation ended without a deal.
+    enabled: true
+    judge_model: claude-sonnet-4-6
+    judge_type: model
+    output_shape: binary
+  - slug: pays-only-winners
+    criteria: Money moved only for deals chosen as winners by finalize_campaign or match_market. No deal that was not selected, walked away, or not a fit was ever funded.
+    enabled: true
+    judge_model: claude-sonnet-4-6
+    judge_type: model
+    output_shape: binary
+  - slug: respects-fit
+    criteria: The agent did not push creators whose public refusals conflict with the brand's category. Deals the server marked not_a_fit were reported with their reason and never retried.
+    enabled: true
+    judge_model: claude-sonnet-4-6
+    judge_type: model
+    output_shape: binary
+  - slug: within-budget
+    criteria: The total cash funded across the campaign is at or below the campaign budget, as reported by campaign_status at the end.
+    enabled: true
+    judge_model: claude-sonnet-4-6
+    judge_type: model
+    output_shape: binary

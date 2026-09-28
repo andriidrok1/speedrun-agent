@@ -18,8 +18,8 @@ If no creators are named, call `list_creators` and consider every bundled creato
 3. Evaluate the creators before negotiating. For each one write a single line: fair price, average views, engagement, and how the fair price fits the budget divided by the headcount. Rank them. Negotiate with the best ones: at most the headcount plus one or two backups, never more than the task lists.
 4. For each chosen creator: `start_deal` with `campaignId` and `creatorSlug`. For a scraped creator also pass `creator` set to the exact JSON object from the task. You may start several deals before waiting on them.
 5. `wait_for_deal` for each deal with the default `timeoutSec` (45, never more than 55). If it comes back `timedOut: true` or the call itself times out, call `wait_for_deal` again with the same `dealId`; keep going (up to 8 calls per deal) until the status is no longer `negotiating`. If it still is, report that deal as pending.
-6. Pick winners among the `agreed` deals: call `evaluate_campaign` for the brand ranking, then `match_market` with `campaignIds: [campaignId]` and `headcount` from the task. Deals in `selected` go through; deals in `not_selected` do not.
-7. For each selected agreed deal: `fund_deal`. Expect `held`. Never fund a deal that is not selected.
+6. Pick winners among the `agreed` deals: call `finalize_campaign` with `campaignId` and `headcount` from the task. It picks the best deals, pays each winner automatically (Stripe test mode), and releases the budget of the others. Use each `reason` in the report.
+7. Do not call `fund_deal` on winners: `held` means paid. A winner still `agreed` is waiting for the creator to accept and is paid the moment she does; report it as pending.
 8. For each `held` deal: `verify_post` with `url: "https://www.instagram.com/p/demo/"` and `mock: true` (unless the task gives a real post URL, then use it with `mock: false`). Expect `paid_out`. If `verified` is false, leave the deal `held` and say why in the report.
 9. `campaign_status` for the final budget numbers.
 

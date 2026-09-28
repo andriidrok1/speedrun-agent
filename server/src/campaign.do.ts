@@ -27,6 +27,9 @@ export function errMessage(e: unknown): string {
   return (e instanceof Error ? e.message : String(e)).replace(/^\[\d{3}\] /, '');
 }
 
+export type FinalizePick = { dealId: string; creatorSlug: string; price: number; reason: string };
+export type FinalizeRecord = { headcount: number; winners: FinalizePick[]; others: FinalizePick[] };
+
 type MetaRow = { campaignId: string; brandSlug: string; budgetTotal: number };
 type LedgerRow = { dealId: string; creatorSlug: string; amount: number; state: LedgerState; status: DealStatus };
 
@@ -109,6 +112,32 @@ export class CampaignDO extends DurableObject<Env> {
     return this.transition(dealId, 'reserved', 'released', 'refunded');
   }
 
+  /** Agreed deal the brand's agent passed on at finalize: its reservation returns to the pool.
+   *  Idempotent: a row that is no longer reserved only gets its status updated. */
+  releaseUnselected(dealId: string): { budgetLeft: number } {
+    const meta = this.meta();
+    this.sql.exec(
+      `UPDATE ledger SET state = CASE WHEN state = 'reserved' THEN 'released' ELSE state END, status = 'walked_away' WHERE dealId = ?`,
+      dealId,
+    );
+    return { budgetLeft: this.budgetLeft(meta.budgetTotal) };
+  }
+
+  /** Winners/others picked by POST /campaigns/:id/finalize, kept so a second call returns the same pick. */
+  finalized(): FinalizeRecord | null {
+    this.sql.exec(`CREATE TABLE IF NOT EXISTS finalize (id INTEGER PRIMARY KEY CHECK (id = 1), json TEXT NOT NULL)`);
+    const row = this.sql.exec<{ json: string }>('SELECT json FROM finalize WHERE id = 1').toArray()[0];
+    return row ? (JSON.parse(row.json) as FinalizeRecord) : null;
+  }
+
+  setFinalized(record: FinalizeRecord): void {
+    this.sql.exec(`CREATE TABLE IF NOT EXISTS finalize (id INTEGER PRIMARY KEY CHECK (id = 1), json TEXT NOT NULL)`);
+    this.sql.exec(
+      `INSERT INTO finalize (id, json) VALUES (1, ?) ON CONFLICT(id) DO UPDATE SET json = excluded.json`,
+      JSON.stringify(record),
+    );
+  }
+
   /** Record a status for the campaign summary without touching money (walked_away, held). */
   note(dealId: string, creatorSlug: string, status: DealStatus): { budgetLeft: number } {
     const meta = this.meta();
@@ -123,6 +152,7 @@ export class CampaignDO extends DurableObject<Env> {
   reset(): { ok: true } {
     // Demo helper. Rows for held/paid deals are kept so verify/expire can still commit/release.
     this.sql.exec("DELETE FROM ledger WHERE state = 'released' OR status IN ('agreed','walked_away','negotiating')");
+    this.sql.exec('DROP TABLE IF EXISTS finalize');
     return { ok: true };
   }
 

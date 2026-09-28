@@ -48,6 +48,8 @@ export interface DealState {
   brandMaxUsd?: number;
   creatorMinUsd?: number;
   approvals: Approvals;
+  /** The brand's agent picked this deal (step 2) and pays as soon as the creator accepts. */
+  autopay: boolean;
   busy: boolean;
   error: string | null;
   approve: (side: Side) => void;
@@ -88,7 +90,9 @@ function eventsFor(status: DealStatus, price: number, extras: string[], handle: 
     out.push({
       status: "walked_away",
       text:
-        walkReason === "not_a_fit"
+        walkReason === "not_selected"
+          ? "The brand went with another creator this time."
+          : walkReason === "not_a_fit"
           ? `Not a fit, so no conversation started. ${fitReasons?.[0] ?? ""}`.trim()
           : walkReason === "budget_gap"
           ? "Paused: the budgets do not overlap yet. Needs your call."
@@ -243,8 +247,9 @@ export function useDeal(creator: Creator, existing?: ExistingDeal): DealState {
     brandMaxUsd: deal?.brand_max_usd,
     creatorMinUsd: deal?.creator_min_usd,
     approvals: deal?.approvals ?? localApprovals,
+    autopay: !!deal?.autopay,
     busy,
-    error,
+    error: error ?? (deal?.status === "agreed" ? (deal.lastError ?? null) : null),
     approve: async (side) => {
       if (!deal) return;
       setError(null);
@@ -336,6 +341,7 @@ function useScriptedDeal(creator: Creator, enabled: boolean): DealState {
     typing: status === "negotiating" && shown < s.length ? s[shown].from : null,
     deliverables: "1 reel + 1 story",
     approvals,
+    autopay: false,
     busy,
     error: null,
     approve: (side) => setApprovals((a) => ({ ...a, [side]: true })),
