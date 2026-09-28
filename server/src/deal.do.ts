@@ -333,9 +333,23 @@ export class DealDO extends DurableObject<Env> {
     if (deal.status !== 'agreed') return deal;
     deal.selection = 'selected';
     deal.autopay = true;
-    if (deal.approvals) deal.approvals = { ...deal.approvals, brand: true };
+    // Both agents accept: the brand's agent picked this deal, the creator's agent already agreed
+    // to these exact terms in the negotiation. No human click, the payment follows right away.
+    deal.approvals = { brand: true, creator: true };
     this.save(deal);
-    return this.autopayIfReady();
+    const creatorName = CREATORS[deal.creatorSlug]?.public.name ?? deal.creatorProfile?.public.name ?? deal.creatorSlug;
+    const cash = deal.acceptedOffer?.package.cash_usd ?? deal.price;
+    if (!this.turns().some((t) => /^Good news:/.test(t.message))) {
+      this.systemTurn('brand', 'accept', `Good news: after comparing every offer on the table for this campaign, yours is one we want. We're going ahead at $${cash} cash plus the package we agreed and funding it now.`);
+      this.systemTurn('creator', 'accept', `Yes. Same terms we agreed, so let's do it. Send the brief.`);
+    }
+    const paid = await this.autopayIfReady();
+    if (paid.status === 'held' && !this.turns().some((t) => /^Payment sent\./.test(t.message))) {
+      this.systemTurn('brand', 'accept', `Payment sent. $${paid.price} is now held by Stripe (payment ${paid.stripe?.paymentIntentId ?? '?'}) and will be released to ${creatorName} when the post is live.`);
+    } else if (paid.status === 'agreed' && paid.lastError) {
+      this.systemTurn('brand', 'accept', `Payment failed: ${paid.lastError.replace(/^\[\d{3}\] /, '')}`);
+    }
+    return this.must();
   }
 
   /** Finalize: agreed but not picked. agreed -> walked_away, its budget reservation is released. */
