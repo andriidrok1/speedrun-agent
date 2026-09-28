@@ -136,9 +136,9 @@ export async function autoMatchIfReady(env: Env, campaignId: string): Promise<Au
   if (!deals.some((d) => d.status === 'agreed' && (d.selection === undefined || d.selection === null))) {
     return { ran: false, reason: 'nothing to select' };
   }
-  const allCampaignIds = [...new Set((await marketStub(env).all()).map((r) => r.campaignId))];
-  if (!allCampaignIds.includes(campaignId)) allCampaignIds.push(campaignId);
-  const match = await runMarketMatch(env, allCampaignIds); // each campaign's own headcount
+  // Match inside this campaign only: the shared prod instance holds stale test campaigns whose
+  // agreed deals would otherwise compete for the creator's slots and receive selection messages.
+  const match = await runMarketMatch(env, [campaignId]); // the campaign's own headcount
 
   const touched = [...match.selected, ...match.not_selected];
   await Promise.all(touched.map(async (dealId) => {

@@ -171,7 +171,7 @@ export class CampaignDO extends DurableObject<Env> {
   }
 
   private meta(): MetaRow {
-    const row = this.sql.exec<MetaRow>('SELECT campaignId, brandSlug, budgetTotal FROM meta WHERE id = 1').toArray()[0];
+    const row = this.sql.exec<MetaRow>('SELECT campaignId, brandSlug, budgetTotal, headcount FROM meta WHERE id = 1').toArray()[0];
     if (!row) fail(404, 'campaign not found');
     return row;
   }
