@@ -51,6 +51,17 @@ function BrandSetup({ initial, hasSaved }: { initial: BrandForm; hasSaved: boole
 
       <TextIntake
         placeholder="We are Cluely, an AI study app for students. $10k for 5 creators, 1 reel and 3 stories each, max $2,500 per creator, we can add a free year of Pro..."
+        sample={{
+          label: "Use the Cluely sample",
+          url: "https://cluely.com",
+          text:
+            "We are Cluely, an AI study app for college students. Fall 2026 back-to-school push, Oct 15 to Nov 30. " +
+            "Budget $10,000 for up to 5 creators, 1 reel and 3 stories each, max $2,500 per creator, we open around $1,200. " +
+            "We can add a free year of Cluely Pro (worth $120) and a 20% affiliate on subscriptions with a 30-day cookie. " +
+            "Audience: US college students 18-24. Voice: casual, a little nerdy, no hard sell. " +
+            "Rules: the creator shows a real study session with the app on screen for at least 8 seconds, tags @cluely, FTC disclosure. " +
+            "No-gos: no cheating or exam-hack framing, no comparisons to ChatGPT, no discount codes above 20%, no perpetual usage rights.",
+        }}
         linkLabel="Your website"
         linkPlaceholder="https://cluely.com"
         build={async (text, url) => {

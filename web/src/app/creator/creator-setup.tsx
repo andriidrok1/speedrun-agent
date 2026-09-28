@@ -68,6 +68,16 @@ function CreatorSetupForm({ creators, initial, hasSaved }: { creators: Creator[]
         placeholder="I'm @nicktarmo, lifestyle and tech. I charge about $1,000 for a reel, never under $700, no gambling or crypto..."
         linkLabel="Your Instagram"
         linkPlaceholder="https://instagram.com/nicktarmo"
+        sample={{
+          label: "Use the @nicktarmo sample",
+          url: "https://instagram.com/nicktarmo",
+          text:
+            "I'm @nicktarmo, lifestyle and tech on Instagram. I charge about $1,000 for a reel and $200 per story, never under $700 for a reel. " +
+            "Happy to take product if I'd actually use it, and affiliate deals at 15% or more with a 30-day cookie. " +
+            "I like early access, event invites and being reposted by the brand. " +
+            "I don't do gambling, crypto, vapes or anything with scripted lines word for word. No exclusivity over 60 days, at least 7 days notice. " +
+            "Paid ads usage costs extra, perpetual rights are a no.",
+        }}
         build={async (text, url) => {
           const next = await buildFromText("creator", text, url, built ? form : undefined);
           const match = findCreator(creators, next.handle);

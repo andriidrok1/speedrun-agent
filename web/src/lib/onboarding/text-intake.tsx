@@ -16,10 +16,13 @@ export function TextIntake({
   linkPlaceholder,
   build,
   onManual,
+  sample,
 }: {
   placeholder: string;
   linkLabel: string;
   linkPlaceholder: string;
+  /** Demo shortcut: fills the box (and link) with a ready-made example. */
+  sample?: { label?: string; text: string; url?: string };
   /** Calls the server and applies the result; throws on failure. */
   build: (text: string, url: string) => Promise<void>;
   onManual: () => void;
@@ -50,7 +53,24 @@ export function TextIntake({
         void submit();
       }}
     >
-      <TextArea label="Tell us in your own words" placeholder={placeholder} rows={6} value={text} onChange={setText} isDisabled={loading} />
+      <div className="space-y-1.5">
+        <TextArea label="Tell us in your own words" placeholder={placeholder} rows={6} value={text} onChange={setText} isDisabled={loading} />
+        {sample && (
+          <div className="flex justify-end">
+            <Button
+              color="link-gray"
+              size="sm"
+              isDisabled={loading}
+              onClick={() => {
+                setText(sample.text);
+                if (sample.url) setUrl(sample.url);
+              }}
+            >
+              {sample.label ?? "Use a sample"}
+            </Button>
+          </div>
+        )}
+      </div>
       <Input label={linkLabel} hint="Optional" placeholder={linkPlaceholder} value={url} onChange={setUrl} isDisabled={loading} />
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-sm text-tertiary">
