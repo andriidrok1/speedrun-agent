@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Creator, DealStatus } from "@shared/contract";
 import { buildCreatorProfile } from "@/lib/onboarding/profiles";
 import { loadCreator, type SavedCampaign } from "@/lib/onboarding/store";
@@ -111,6 +111,12 @@ export type ExistingDeal = { dealId: string; brandName: string };
 
 export function useDeal(creator: Creator, existing?: ExistingDeal): DealState {
   const handle = creator.handle.replace("@", "");
+  // The inbox re-creates `creator` and `existing` objects on every poll; only their identity
+  // (handle, dealId, brandName) may restart the deal, otherwise the chat resets every few seconds.
+  const creatorRef = useRef(creator);
+  creatorRef.current = creator;
+  const existingId = existing?.dealId;
+  const existingBrand = existing?.brandName;
   const [nonce] = useState(() => Math.random().toString(36).slice(2));
   const [run, setRun] = useState(0);
   const [mode, setMode] = useState<DealState["mode"]>("connecting");
@@ -131,17 +137,18 @@ export function useDeal(creator: Creator, existing?: ExistingDeal): DealState {
       starts.set(
         key,
         (async () => {
-          if (existing && run === 0) {
-            const d = await api.getDeal(existing.dealId);
-            return { deal: d, campaign: { campaignId: d.campaignId, brandName: existing.brandName, budgetTotal: 0 } };
+          if (existingId && run === 0) {
+            const d = await api.getDeal(existingId);
+            return { deal: d, campaign: { campaignId: d.campaignId, brandName: existingBrand ?? "", budgetTotal: 0 } };
           }
           const c = await ensureCampaign();
           const saved = loadCreator();
-          const profile = saved && saved.handle.toLowerCase() === handle.toLowerCase() ? buildCreatorProfile(saved, creator) : undefined;
+          const current = creatorRef.current;
+          const profile = saved && saved.handle.toLowerCase() === handle.toLowerCase() ? buildCreatorProfile(saved, current) : undefined;
           const d = await api.startDeal({
             campaignId: c.campaignId,
             creatorSlug: handle,
-            creator,
+            creator: current,
             creatorProfile: profile,
           });
           return { deal: d, campaign: c };
@@ -160,7 +167,7 @@ export function useDeal(creator: Creator, existing?: ExistingDeal): DealState {
     return () => {
       cancelled = true;
     };
-  }, [nonce, run, handle, creator, existing]);
+  }, [nonce, run, handle, existingId, existingBrand]);
 
   // Poll the transcript while the agents talk.
   const dealId = deal?.dealId;
