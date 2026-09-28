@@ -1,0 +1,5 @@
+[
+  { "handle": "@demo_fitjane", "platform": "tiktok", "followers": 300000, "avgViews30d": 80000, "engagement": 0.06, "fairPrice": 1760, "name": "Fit Jane (fake)", "niche": "fitness", "posts30d": 14 },
+  { "handle": "@demo_liftwithleo", "platform": "instagram", "followers": 120000, "avgViews30d": 42000, "engagement": 0.045, "fairPrice": 861, "name": "Leo (fake)", "niche": "fitness", "posts30d": 9 },
+  { "handle": "@demo_runmira", "platform": "instagram", "followers": 64000, "avgViews30d": 25000, "engagement": 0.08, "fairPrice": 600, "name": "Mira (fake)", "niche": "fitness", "posts30d": 11 }
+]
