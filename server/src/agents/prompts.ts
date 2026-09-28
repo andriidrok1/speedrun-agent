@@ -100,8 +100,8 @@ export function toHistoryOffer(t: Turn | Offer): HistoryOffer {
   return { round, from, package: pkg, deliverables, usage_rights, exclusivity, deadline, message, status };
 }
 
-export function buildTurnUserMessage(input: { side: Side; round: number; history: (Turn | Offer)[]; campaignName: string }): string {
-  const { side, round, history, campaignName } = input;
+export function buildTurnUserMessage(input: { side: Side; round: number; history: (Turn | Offer)[]; campaignName: string; lastRound?: number }): string {
+  const { side, round, history, campaignName, lastRound } = input;
   const other = side === 'brand' ? 'creator' : 'brand';
   const last = history[history.length - 1];
   const intro =
@@ -112,7 +112,13 @@ export function buildTurnUserMessage(input: { side: Side; round: number; history
     last && last.from === other
       ? `The ${other}'s latest offer (round ${last.round}) is on the table. Decide: accept it as-is, counter with a concrete package, or walk away.`
       : `It is your move.`;
-  return `${intro}\n\nRound ${round}. You are the ${side}. ${ask} Call propose_offer now.`;
+  const urgency =
+    lastRound !== undefined && round >= lastRound
+      ? ` THIS IS THE LAST ROUND: if the offer on the table satisfies your own private rules, accept it now; otherwise put your single best final package on the table (go to your limit, do not leave value unused). A walk-away here means no deal for either side.`
+      : lastRound !== undefined && round === lastRound - 1
+        ? ` Only one round remains after this one; close the gap decisively.`
+        : '';
+  return `${intro}\n\nRound ${round}. You are the ${side}. ${ask}${urgency} Call propose_offer now.`;
 }
 
 /** OpenAI function definition, strict mode: every property required, no additionalProperties, optional fields nullable. */

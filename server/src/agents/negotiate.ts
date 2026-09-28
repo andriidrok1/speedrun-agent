@@ -201,7 +201,7 @@ export async function runNegotiationLLM(input: NegotiationInputLLM): Promise<Neg
   /** One side's move: up to MAX_ATTEMPTS model calls with referee feedback, then the engine's deterministic offer. */
   const move = async (side: Side, round: number, lastOpposing: Offer | null): Promise<Offer> => {
     const messages: ChatCompletionMessageParam[] = [
-      { role: 'user', content: buildTurnUserMessage({ side, round, history: turns, campaignName: brand.public.campaign.name }) },
+      { role: 'user', content: buildTurnUserMessage({ side, round, history: turns, campaignName: brand.public.campaign.name, lastRound: limit }) },
     ];
     let lastText: string | undefined;
     for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
