@@ -5,6 +5,8 @@ import { DealDO } from './deal.do';
 import { CampaignDO, errMessage, errStatus } from './campaign.do';
 import { BRANDS } from './profiles.bundle';
 import type { Creator } from './types';
+import Stripe from 'stripe';
+import { makeStripe } from './stripe';
 export { DealDO } from './deal.do';
 export { CampaignDO } from './campaign.do';
 
@@ -17,8 +19,12 @@ export type Env = {
   /** 'off' forces the deterministic engine even when OPENAI_API_KEY is set. */
   LLM_MODE?: string;
   PLATFORM_FEE_PCT: string;
-  /** "mock" makes POST /deals/:id/verify skip the network check. */
+  /** "mock" lets POST /deals/:id/verify skip the network check. Off unless set. */
   VERIFY_MODE?: string;
+  /** Seconds a held deal waits for a verified post before auto-refund. Default 7 days. */
+  HOLD_DEADLINE_SECONDS?: string;
+  /** Signing secret for POST /stripe/webhook (from `stripe listen` or the dashboard). */
+  STRIPE_WEBHOOK_SECRET?: string;
 };
 
 type C = Context<{ Bindings: Env }>;
@@ -118,6 +124,29 @@ app.post('/deals/:id/verify', async (c) => {
 });
 
 app.post('/deals/:id/expire', async (c) => c.json(await dealStub(c, c.req.param('id')).expire()));
+
+// ---- stripe webhook ------------------------------------------------------------------------------
+// Signed events from Stripe. Deals move synchronously (charges are confirmed server-side), so this is
+// the audit trail per deal: payments, refunds, transfers. Locally:
+//   stripe listen --forward-to localhost:8787/stripe/webhook   (prints the whsec_ for .dev.vars)
+
+app.post('/stripe/webhook', async (c) => {
+  const secret = c.env.STRIPE_WEBHOOK_SECRET;
+  const key = c.env.STRIPE_SECRET_KEY;
+  if (!secret || !key) return c.json({ error: 'stripe webhook not configured' }, 503);
+  const sig = c.req.header('stripe-signature');
+  if (!sig) return c.json({ error: 'missing stripe-signature header' }, 400);
+  const raw = await c.req.text(); // raw body: the signature is over the exact bytes
+  let event: Stripe.Event;
+  try {
+    event = await makeStripe(key).webhooks.constructEventAsync(raw, sig, secret, undefined, Stripe.createSubtleCryptoProvider());
+  } catch {
+    return c.json({ error: 'invalid stripe signature' }, 400);
+  }
+  const obj = event.data.object as { id?: string; metadata?: Record<string, string> };
+  console.log(`[stripe webhook] ${event.type} ${obj.id ?? ''} deal=${obj.metadata?.dealId ?? '-'}`);
+  return c.json({ received: true });
+});
 
 // ---- admin ---------------------------------------------------------------------------------------
 

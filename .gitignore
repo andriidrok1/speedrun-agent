@@ -4,3 +4,9 @@ node_modules/
 .dev.vars
 .wrangler/
 dist/
+!.env.example
+!.env.template
+.DS_Store
+__pycache__/
+*.pyc
+.venv/

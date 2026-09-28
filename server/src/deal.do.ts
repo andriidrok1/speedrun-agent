@@ -7,9 +7,10 @@ import { BRANDS, CREATORS, BRAND_NARRATIVES, CREATOR_NARRATIVES } from './profil
 import { runNegotiation, type NegotiationResult } from './engine/index';
 import { runNegotiationLLM } from './agents/negotiate';
 import { createClient } from './agents/llm';
-import { makeStripe, ensureCreatorAccount, chargeBrand, payoutCreator, refundBrand } from './stripe';
+import { makeStripe, ensureCreatorAccount, creatorTransfersStatus, chargeBrand, payoutCreator, refundBrand } from './stripe';
 import { verifyPostLive, mockVerify, type VerifyResult } from './verify';
 import { fail } from './campaign.do';
+import { profileFromScraped, brandForCreator } from './pricing';
 
 // ---- negotiation strategy -----------------------------------------------------------------------
 // LLM (OpenAI) when OPENAI_API_KEY is set and LLM_MODE != 'off', otherwise the deterministic engine.
@@ -47,7 +48,12 @@ export type CreateDealArgs = {
 };
 
 /** Stored deal: the shared Deal contract plus fields only this side needs. */
-export type DealRecord = Deal & { walkReason?: string; stripe?: Deal['stripe'] & { chargeId?: string } };
+export type DealRecord = Deal & {
+  walkReason?: string;
+  stripe?: Deal['stripe'] & { chargeId?: string };
+  /** When a held deal auto-refunds if the post was never verified (ISO). */
+  holdUntil?: string;
+};
 export type DealWithTurns = DealRecord & { turns: Turn[] };
 export type VerifyOutcome = { verified: boolean; deal: DealRecord; verify: VerifyResult };
 
@@ -82,10 +88,12 @@ export class DealDO extends DurableObject<Env> {
 
   async create(args: CreateDealArgs): Promise<DealRecord> {
     if (this.load()) fail(409, `deal ${args.dealId} already exists`);
-    const brand = BRANDS[args.brandSlug];
-    if (!brand) fail(404, `deal ${args.dealId}: unknown brand ${args.brandSlug}`);
+    const baseBrand = BRANDS[args.brandSlug];
+    if (!baseBrand) fail(404, `deal ${args.dealId}: unknown brand ${args.brandSlug}`);
     const creator = CREATORS[args.creatorSlug] ?? (args.creator ? profileFromScraped(args.creatorSlug, args.creator) : null);
     if (!creator) fail(404, `deal ${args.dealId}: unknown creator ${args.creatorSlug} (pass a Creator object to negotiate with a scraped profile)`);
+    // Cap the brand at 1.3x this creator's own rate card, so offers follow real reach.
+    const brand = brandForCreator(baseBrand, creator);
 
     const campaign = this.campaign(args.campaignId);
     const snapshot = await campaign.get(); // 404 if the campaign was never created
@@ -164,7 +172,11 @@ export class DealDO extends DurableObject<Env> {
 
   /** agreed -> held. Creates the creator's Connect account (once) and charges the brand. */
   async fund(): Promise<DealRecord> {
-    this.require(this.must(), 'agreed');
+    const current = this.must();
+    this.require(current, 'agreed');
+    if (!(current.price >= 0.5)) {
+      fail(422, `deal ${current.dealId}: cash part is $${current.price}. Product-only deals have nothing to charge (Stripe minimum is $0.50)`);
+    }
     this.stripe(); // 503 before we enter the block
     return this.guarded(async () => {
       const deal = this.must();
@@ -176,6 +188,11 @@ export class DealDO extends DurableObject<Env> {
         name: creatorName,
         email: `${deal.creatorSlug}@example.com`,
       });
+      // Never charge the brand for a creator we cannot pay out to.
+      const transfers = await creatorTransfersStatus(stripe, accountId);
+      if (transfers !== 'active') {
+        fail(409, `deal ${deal.dealId}: creator account ${accountId} cannot receive transfers yet (stripe_transfers=${transfers}). The brand was not charged.`);
+      }
       const { paymentIntentId, chargeId } = await chargeBrand(stripe, {
         dealId: deal.dealId,
         amountUsd: deal.price,
@@ -183,6 +200,10 @@ export class DealDO extends DurableObject<Env> {
       });
       deal.stripe = { ...deal.stripe, accountId, paymentIntentId, chargeId };
       deal.status = 'held';
+      // Deadline: if the post is not verified in time, alarm() refunds the brand.
+      const holdMs = (Number(this.env.HOLD_DEADLINE_SECONDS) || 7 * 86_400) * 1000;
+      deal.holdUntil = new Date(Date.now() + holdMs).toISOString();
+      await this.ctx.storage.setAlarm(Date.now() + holdMs);
       deal.updatedAt = new Date().toISOString();
       this.save(deal);
       await this.ledger(deal, (c) => c.note(deal.dealId, deal.creatorSlug, 'held'));
@@ -195,7 +216,10 @@ export class DealDO extends DurableObject<Env> {
     const before = this.must();
     this.require(before, 'held');
     const brand = BRANDS[before.brandSlug];
-    const useMock = args.mock === true || this.env.VERIFY_MODE === 'mock';
+    // Mock verification releases real (test) money, so only the server can turn it on.
+    const mockAllowed = this.env.VERIFY_MODE === 'mock';
+    if (args.mock === true && !mockAllowed) fail(403, 'mock verify is off. Set VERIFY_MODE=mock in server/.dev.vars for local demos');
+    const useMock = mockAllowed && args.mock !== false;
     const result = useMock
       ? mockVerify(args.url)
       : await verifyPostLive({ url: args.url, requiredTag: brand ? brandHandle(brand) : undefined });
@@ -214,7 +238,7 @@ export class DealDO extends DurableObject<Env> {
       const accountId = deal.stripe?.accountId;
       const chargeId = deal.stripe?.chargeId;
       if (!accountId || !chargeId) fail(500, `deal ${deal.dealId}: held without stripe accountId/chargeId`);
-      const feePct = Number(this.env.PLATFORM_FEE_PCT ?? '10');
+      const feePct = Number(this.env.PLATFORM_FEE_PCT || '10');
       const { transferId } = await payoutCreator(stripe, {
         dealId: deal.dealId, accountId, amountUsd: deal.price, feePct, chargeId,
       });
@@ -222,6 +246,7 @@ export class DealDO extends DurableObject<Env> {
       deal.stripe = { ...deal.stripe, transferId };
       deal.postUrl = args.url;
       deal.status = 'paid_out';
+      await this.ctx.storage.deleteAlarm();
       deal.updatedAt = new Date().toISOString();
       this.save(deal);
       await this.ledger(deal, async (c) => { deal.budgetLeft = (await c.commit(deal.dealId)).budgetLeft; this.save(deal); });
@@ -242,11 +267,25 @@ export class DealDO extends DurableObject<Env> {
       const { refundId } = await refundBrand(stripe, { dealId: deal.dealId, paymentIntentId });
       deal.stripe = { ...deal.stripe, refundId };
       deal.status = 'refunded';
+      await this.ctx.storage.deleteAlarm();
       deal.updatedAt = new Date().toISOString();
       this.save(deal);
       await this.ledger(deal, async (c) => { deal.budgetLeft = (await c.release(deal.dealId)).budgetLeft; this.save(deal); });
       return deal;
     });
+  }
+
+  /** Hold deadline passed without a verified post: refund the brand. */
+  async alarm(): Promise<void> {
+    const deal = this.load();
+    if (deal?.status !== 'held') return;
+    try {
+      await this.expire();
+      console.log(`deal ${deal.dealId}: hold deadline passed, brand refunded`);
+    } catch (e) {
+      console.error(`deal ${deal.dealId}: auto-refund failed: ${e instanceof Error ? e.message : String(e)}`);
+      throw e; // let the runtime retry the alarm
+    }
   }
 
   // ---- internals -------------------------------------------------------------------------------
@@ -339,41 +378,4 @@ export class DealDO extends DurableObject<Env> {
 /** "@marinelayer" from the brand's public name. verify.ts also matches the bare form. */
 export function brandHandle(brand: BrandProfile): string {
   return '@' + brand.public.name.toLowerCase().replace(/[^a-z0-9]/g, '');
-}
-
-/** Minimal CreatorProfile from Raha's scraper output, priced around fairPrice. */
-export function profileFromScraped(slug: string, c: Creator): CreatorProfile {
-  const fair = Math.max(1, Math.round(c.fairPrice));
-  const floor = Math.round(fair * 0.75);
-  const rate = (k: number) => Math.round(fair * k);
-  return {
-    public: {
-      name: slug,
-      handle: c.handle,
-      platforms: [{ name: c.platform, followers: c.followers, avg_views: c.avgViews30d, engagement_pct: c.engagement * 100 }],
-      niche: 'unknown (scraped profile)',
-      audience: { age: 'unknown', gender_split: 'unknown', top_geos: [] },
-      rate_card: { reel: rate(1), story: rate(0.16), post: rate(0.43), bundle_reel_3_stories: rate(1.4) },
-      content_style: 'unknown',
-      past_brand_deals: [],
-      availability: { next_open_slot: new Date(Date.now() + 14 * 86_400_000).toISOString().slice(0, 10), slots_per_month: 3, min_lead_time_days: 7 },
-      barter_openness: { product: true, affiliate: true, store_credit: false, custom: [] },
-    },
-    private: {
-      floor_usd: { reel: floor, story: Math.round(floor * 0.16), post: Math.round(floor * 0.43), bundle_reel_3_stories: Math.round(floor * 1.4) },
-      valuation: {
-        product_counted_at_pct_of_retail: 50,
-        affiliate_expected_sales_usd: Math.round(fair * 0.6),
-        affiliate_min_pct: 15,
-        affiliate_min_cookie_days: 30,
-        store_credit_counted_at_pct: 50,
-        custom_value_usd: {},
-      },
-      premiums: { paid_ads_30d_pct: 30, paid_ads_90d_pct: 60, perpetual_pct: 120, exclusivity_per_30d_pct: 15, rush_under_7d_pct: 25 },
-      concession_rules: { first_ask_pct_over_floor: 35, step_pct: 10, max_rounds: 6 },
-      stop_brands: [],
-      dealbreakers: [],
-      soft_preferences: [],
-    },
-  };
 }

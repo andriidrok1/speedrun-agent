@@ -1,4 +1,12 @@
+# Copy to server/.dev.vars (gitignored) and fill in. Only test-mode Stripe keys are accepted.
 STRIPE_SECRET_KEY=sk_test_...
-ANTHROPIC_API_KEY=sk-ant-...
-BROWSERBASE_API_KEY=
-BROWSERBASE_PROJECT_ID=
+# From `stripe listen --forward-to localhost:8787/stripe/webhook`
+STRIPE_WEBHOOK_SECRET=whsec_...
+# LLM negotiation (OpenAI). Leave empty to use the deterministic engine.
+OPENAI_API_KEY=
+OPENAI_MODEL=gpt-5-mini
+# LLM_MODE=off
+# Local demos: lets POST /deals/:id/verify skip the real post check. Remove for real verification.
+VERIFY_MODE=mock
+# Seconds a held deal waits for a verified post before auto-refund (default 7 days). 120 is handy for demos.
+# HOLD_DEADLINE_SECONDS=120

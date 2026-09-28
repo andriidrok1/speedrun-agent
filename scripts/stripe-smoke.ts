@@ -2,7 +2,6 @@
 //   cd server && npx tsx ../scripts/stripe-smoke.ts            # full: account -> charge -> transfer
 //   cd server && npx tsx ../scripts/stripe-smoke.ts --check    # balance only
 //   cd server && npx tsx ../scripts/stripe-smoke.ts --refund   # account -> charge -> refund
-//   add --custom to create a Custom (not Express) account if Express refuses prefilled test data
 //
 // Reads STRIPE_SECRET_KEY from server/.dev.vars (KEY=VALUE lines). Never prints the key.
 
@@ -38,7 +37,6 @@ const feePct = Number(process.env.PLATFORM_FEE_PCT || vars.PLATFORM_FEE_PCT || '
 
 const args = new Set(process.argv.slice(2));
 const mode: 'check' | 'refund' | 'full' = args.has('--check') ? 'check' : args.has('--refund') ? 'refund' : 'full';
-const accountType = args.has('--custom') ? 'custom' : 'express';
 
 const usd = (n: number) => `$${n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
@@ -60,11 +58,11 @@ async function main() {
   const ts = Date.now();
   const dealId = `smoke-${ts}`;
   const amountUsd = 3400;
-  console.log(`\nmode=${mode} deal=${dealId} amount=${usd(amountUsd)} fee=${feePct}% account=${accountType}`);
+  console.log(`\nmode=${mode} deal=${dealId} amount=${usd(amountUsd)} fee=${feePct}%`);
 
   console.log('\n1. creator account');
   const accountId = await ensureCreatorAccount(stripe, {
-    slug: 'maya-wears', name: 'Maya Ortiz', email: 'maya@example.com', type: accountType,
+    slug: 'maya-wears', name: 'Maya Ortiz', email: 'maya@example.com',
   });
   console.log(`   accountId=${accountId}`);
 
@@ -99,7 +97,7 @@ async function main() {
   console.log('\n=== summary (check in Stripe Dashboard, test mode) ===');
   console.log(`deal            ${dealId}`);
   console.log(`payment         ${paymentIntentId}  ${usd(amountUsd)}  (charge ${chargeId})`);
-  console.log(`creator account ${accountId}  (maya-wears, ${accountType})`);
+  console.log(`creator account ${accountId}  (maya-wears, Accounts v2)`);
   if (transferId) console.log(`transfer        ${transferId}  ${usd(netUsd)}  (fee ${feePct}% = ${usd(amountUsd - netUsd)})`);
   if (refundId) console.log(`refund          ${refundId}  ${usd(amountUsd)}`);
   console.log(`platform bal    before: avail ${usd(before.availableUsd)} / pending ${usd(before.pendingUsd)}`);
