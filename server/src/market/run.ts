@@ -158,7 +158,7 @@ export async function autoMatchIfReady(env: Env, campaignId: string): Promise<Au
       ...names,
     });
   }));
-  return { ran: true, reason: `matched ${allCampaignIds.length} campaign(s): ${match.selected.length} selected, ${match.not_selected.length} not selected`, match };
+  return { ran: true, reason: `matched campaign ${campaignId}: ${match.selected.length} selected, ${match.not_selected.length} not selected`, match };
 }
 
 const lastAutoRun = new Map<string, number>();
