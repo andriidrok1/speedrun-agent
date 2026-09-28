@@ -65,7 +65,8 @@ export type MatchResponse = {
 
 /** Ranks every agreed deal in the given campaigns from both sides, runs the match and writes
  *  selection/ranks to each DealDO. Same shape POST /market/match returns. */
-export async function runMarketMatch(env: Env, campaignIds: string[], headcount: number): Promise<MatchResponse> {
+/** `headcount` overrides every campaign's own headcount when given (explicit POST /market/match); otherwise each campaign uses its stored one. */
+export async function runMarketMatch(env: Env, campaignIds: string[], headcount?: number): Promise<MatchResponse> {
   const campaigns = await Promise.all(campaignIds.map((id) => campaignStub(env, id).get()));
   const scored = await scoreRows(env, await marketStub(env).dealsForCampaigns(campaignIds));
   const lookup = byDeal(scored);
@@ -78,7 +79,7 @@ export async function runMarketMatch(env: Env, campaignIds: string[], headcount:
     ranked.forEach((r, i) => brandRank.set(r.dealId, i + 1));
     brandRankings[cv.campaignId] = ranked.map((r, i) => brandView(lookup.get(r.dealId)!, i + 1));
     // Demo: the whole campaign budget is on the table, not just what is left after reservations.
-    return { id: cv.campaignId, budget_usd: cv.budgetTotal, headcount, prefs: ranked.map((r) => r.dealId) };
+    return { id: cv.campaignId, budget_usd: cv.budgetTotal, headcount: headcount ?? cv.headcount ?? 3, prefs: ranked.map((r) => r.dealId) };
   });
 
   const creatorRankings: MatchResponse['creatorRankings'] = {};
@@ -137,8 +138,7 @@ export async function autoMatchIfReady(env: Env, campaignId: string): Promise<Au
   }
   const allCampaignIds = [...new Set((await marketStub(env).all()).map((r) => r.campaignId))];
   if (!allCampaignIds.includes(campaignId)) allCampaignIds.push(campaignId);
-  const headcount = 3; // CampaignDO stores no headcount yet
-  const match = await runMarketMatch(env, allCampaignIds, headcount);
+  const match = await runMarketMatch(env, allCampaignIds); // each campaign's own headcount
 
   const touched = [...match.selected, ...match.not_selected];
   await Promise.all(touched.map(async (dealId) => {

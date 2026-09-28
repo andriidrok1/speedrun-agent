@@ -122,9 +122,14 @@ app.post('/campaigns', async (c) => {
     if (typeof b.budgetUsd !== 'number' || !(b.budgetUsd > 0)) return c.json({ error: 'budgetUsd must be a positive number' }, 400);
     budgetTotal = b.budgetUsd;
   }
+  let headcount = 3;
+  if (b.headcount !== undefined) {
+    if (!Number.isInteger(b.headcount) || (b.headcount as number) < 1) return c.json({ error: 'headcount must be a positive integer' }, 400);
+    headcount = b.headcount as number;
+  }
   const campaignId = crypto.randomUUID();
-  const view = await campaignStub(c, campaignId).init({ campaignId, brandSlug, budgetTotal, brand: custom });
-  return c.json({ campaignId: view.campaignId, brandSlug: view.brandSlug, budgetTotal: view.budgetTotal, budgetLeft: view.budgetLeft }, 201);
+  const view = await campaignStub(c, campaignId).init({ campaignId, brandSlug, budgetTotal, headcount, brand: custom });
+  return c.json({ campaignId: view.campaignId, brandSlug: view.brandSlug, budgetTotal: view.budgetTotal, budgetLeft: view.budgetLeft, headcount: view.headcount }, 201);
 });
 
 app.get('/campaigns/:id', async (c) => {

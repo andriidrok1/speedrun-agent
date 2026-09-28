@@ -84,7 +84,7 @@ async function call<T>(path: string, init?: RequestInit): Promise<T> {
 const post = <T>(path: string, body?: unknown) => call<T>(path, { method: "POST", body: JSON.stringify(body ?? {}) });
 
 export const api = {
-  createCampaign: (b: { brand?: BrandProfile; brandSlug?: string; budgetUsd?: number }) => post<ServerCampaign>("/campaigns", b),
+  createCampaign: (b: { brand?: BrandProfile; brandSlug?: string; budgetUsd?: number; headcount?: number }) => post<ServerCampaign>("/campaigns", b),
   getCampaign: (id: string) => call<ServerCampaign>(`/campaigns/${id}`),
   startDeal: (b: { campaignId: string; creatorSlug: string; creator: Creator; creatorProfile?: CreatorProfile }) =>
     post<ServerDeal>("/deals", {

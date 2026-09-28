@@ -11,6 +11,8 @@ export type CampaignView = {
   brandSlug: string;
   budgetTotal: number;
   budgetLeft: number;
+  /** Max creators the brand wants to pay for; the market match selects at most this many. */
+  headcount: number;
   deals: DealSummary[];
 };
 
@@ -30,7 +32,7 @@ export function errMessage(e: unknown): string {
 export type FinalizePick = { dealId: string; creatorSlug: string; price: number; reason: string };
 export type FinalizeRecord = { headcount: number; winners: FinalizePick[]; others: FinalizePick[] };
 
-type MetaRow = { campaignId: string; brandSlug: string; budgetTotal: number };
+type MetaRow = { campaignId: string; brandSlug: string; budgetTotal: number; headcount?: number | null };
 type LedgerRow = { dealId: string; creatorSlug: string; amount: number; state: LedgerState; status: DealStatus };
 
 export class CampaignDO extends DurableObject<Env> {
@@ -43,8 +45,10 @@ export class CampaignDO extends DurableObject<Env> {
       id INTEGER PRIMARY KEY CHECK (id = 1),
       campaignId TEXT NOT NULL,
       brandSlug TEXT NOT NULL,
-      budgetTotal REAL NOT NULL
+      budgetTotal REAL NOT NULL,
+      headcount INTEGER
     )`);
+    try { this.sql.exec('ALTER TABLE meta ADD COLUMN headcount INTEGER'); } catch { /* column exists */ }
     this.sql.exec(`CREATE TABLE IF NOT EXISTS ledger (
       dealId TEXT PRIMARY KEY,
       creatorSlug TEXT NOT NULL,
@@ -54,7 +58,7 @@ export class CampaignDO extends DurableObject<Env> {
     )`);
   }
 
-  init(args: { campaignId: string; brandSlug: string; budgetTotal: number; brand?: BrandProfile }): CampaignView {
+  init(args: { campaignId: string; brandSlug: string; budgetTotal: number; headcount?: number; brand?: BrandProfile }): CampaignView {
     this.sql.exec(`CREATE TABLE IF NOT EXISTS brand (id INTEGER PRIMARY KEY CHECK (id = 1), json TEXT NOT NULL)`);
     if (args.brand) {
       this.sql.exec(
@@ -63,9 +67,9 @@ export class CampaignDO extends DurableObject<Env> {
       );
     }
     this.sql.exec(
-      `INSERT INTO meta (id, campaignId, brandSlug, budgetTotal) VALUES (1, ?, ?, ?)
-       ON CONFLICT(id) DO UPDATE SET campaignId = excluded.campaignId, brandSlug = excluded.brandSlug, budgetTotal = excluded.budgetTotal`,
-      args.campaignId, args.brandSlug, args.budgetTotal,
+      `INSERT INTO meta (id, campaignId, brandSlug, budgetTotal, headcount) VALUES (1, ?, ?, ?, ?)
+       ON CONFLICT(id) DO UPDATE SET campaignId = excluded.campaignId, brandSlug = excluded.brandSlug, budgetTotal = excluded.budgetTotal, headcount = excluded.headcount`,
+      args.campaignId, args.brandSlug, args.budgetTotal, args.headcount ?? 3,
     );
     return this.get();
   }
@@ -78,6 +82,7 @@ export class CampaignDO extends DurableObject<Env> {
       brandSlug: meta.brandSlug,
       budgetTotal: meta.budgetTotal,
       budgetLeft: this.budgetLeft(meta.budgetTotal),
+      headcount: meta.headcount ?? 3,
       deals: deals.map((d) => ({ dealId: d.dealId, creatorSlug: d.creatorSlug, status: d.status, price: d.amount })),
     };
   }

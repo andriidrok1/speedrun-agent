@@ -16,7 +16,7 @@ export async function ensureCampaign(): Promise<SavedCampaign> {
   }
   const brand = loadBrand();
   const created = brand
-    ? await api.createCampaign({ brand: buildBrandProfile(brand), budgetUsd: brand.totalBudget })
+    ? await api.createCampaign({ brand: buildBrandProfile(brand), budgetUsd: brand.totalBudget, headcount: Math.max(1, brand.creators || 1) })
     : await api.createCampaign({ brandSlug: "marine-layer", budgetUsd: 20_000 });
   const next = { campaignId: created.campaignId, brandName: brand?.name ?? "Marine Layer", budgetTotal: created.budgetTotal };
   saveCampaign(next);
