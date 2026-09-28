@@ -3,17 +3,24 @@ import { cors } from 'hono/cors';
 import type { Context } from 'hono';
 import { DealDO } from './deal.do';
 import { CampaignDO, errMessage, errStatus } from './campaign.do';
+import { MarketDO, type MarketDealRow } from './market.do';
 import { BRANDS } from './profiles.bundle';
-import type { BrandProfile, Creator, CreatorProfile } from './types';
+import type { BrandProfile, BrandScore, Creator, CreatorProfile, CreatorScore, MarketInput } from './types';
+import { brandForCreator } from './pricing';
+import { scoreForBrand, scoreForCreator, rankBrand, rankCreator } from './market/score';
+import { matchMarket } from './market/match';
 import Stripe from 'stripe';
 import { makeStripe } from './stripe';
 import { mountMcp } from './mcp';
 export { DealDO } from './deal.do';
 export { CampaignDO } from './campaign.do';
+export { MarketDO } from './market.do';
 
 export type Env = {
   DEAL: DurableObjectNamespace<DealDO>;
   CAMPAIGN: DurableObjectNamespace<CampaignDO>;
+  /** Singleton (name "market"): index of every deal by campaign / creator for the market layer. */
+  MARKET: DurableObjectNamespace<MarketDO>;
   STRIPE_SECRET_KEY?: string;
   OPENAI_API_KEY?: string;
   OPENAI_MODEL?: string;
@@ -83,6 +90,7 @@ function creatorProfileFromBody(v: unknown): CreatorProfile {
 
 const campaignStub = (c: C, id: string) => c.env.CAMPAIGN.get(c.env.CAMPAIGN.idFromName(id));
 const dealStub = (c: C, id: string) => c.env.DEAL.get(c.env.DEAL.idFromName(id));
+const marketStub = (c: C) => c.env.MARKET.get(c.env.MARKET.idFromName('market'));
 
 app.onError((e, c) => {
   const status = errStatus(e);
@@ -177,6 +185,126 @@ app.post('/stripe/webhook', async (c) => {
   const obj = event.data.object as { id?: string; metadata?: Record<string, string> };
   console.log(`[stripe webhook] ${event.type} ${obj.id ?? ''} deal=${obj.metadata?.dealId ?? '-'}`);
   return c.json({ received: true });
+});
+
+
+// ---- market: evaluation + match ------------------------------------------------------------------
+// Scores every agreed deal from both sides (server/src/market/*), ranks them per brand and per
+// creator, and POST /market/match picks which tentative deals go through. Each view only exposes its
+// own side's numbers: the brand never sees the creator's floor, the creator never sees the cap.
+
+type Scored = {
+  row: MarketDealRow;
+  deal: Awaited<ReturnType<DealDO['scoreInputs']>>['deal'];
+  brand: BrandScore;
+  creator: CreatorScore;
+};
+
+/** Brand profile the deal was negotiated under: bundled or onboarded, capped to this creator. */
+async function brandProfileFor(c: C, campaignId: string, brandSlug: string, creator: CreatorProfile): Promise<BrandProfile> {
+  const base = BRANDS[brandSlug] ?? (await campaignStub(c, campaignId).brandProfile());
+  if (!base) throw new Error(`[404] unknown brand ${brandSlug} for campaign ${campaignId}`);
+  return brandForCreator(base, creator);
+}
+
+/** Loads + scores the given market rows, keeping only deals in `agreed` (the tentative ones). */
+async function scoreRows(c: C, rows: MarketDealRow[]): Promise<Scored[]> {
+  const now = new Date();
+  const out = await Promise.all(rows.map(async (row): Promise<Scored | null> => {
+    const inputs = await dealStub(c, row.dealId).scoreInputs();
+    if (inputs.deal.status !== 'agreed') return null;
+    const brand = await brandProfileFor(c, row.campaignId, row.brandSlug, inputs.creatorProfile);
+    return {
+      row, deal: inputs.deal,
+      brand: scoreForBrand(inputs.deal, brand, inputs.creatorProfile, now),
+      creator: scoreForCreator(inputs.deal, inputs.creatorProfile, brand, now),
+    };
+  }));
+  return out.filter((s): s is Scored => s !== null);
+}
+
+const brandView = (s: Scored, rank: number) => ({
+  rank, dealId: s.deal.dealId, creatorSlug: s.deal.creatorSlug,
+  cash_usd: s.brand.cash_usd, value_usd: s.brand.value_usd, surplus_usd: s.brand.surplus_usd,
+  implied_cpm_usd: s.brand.implied_cpm_usd, package: s.deal.acceptedOffer?.package ?? null,
+});
+const creatorView = (s: Scored, rank: number) => ({
+  rank, dealId: s.deal.dealId, brandSlug: s.deal.brandSlug, campaignId: s.deal.campaignId,
+  cash_usd: s.creator.cash_usd, value_usd: s.creator.value_usd, surplus_usd: s.creator.surplus_usd,
+  package: s.deal.acceptedOffer?.package ?? null,
+});
+const byDeal = (scored: Scored[]) => new Map(scored.map((s) => [s.deal.dealId, s]));
+
+app.get('/campaigns/:id/evaluation', async (c) => {
+  const campaignId = c.req.param('id');
+  const campaign = await campaignStub(c, campaignId).get();
+  const scored = await scoreRows(c, await marketStub(c).dealsForCampaigns([campaignId]));
+  const lookup = byDeal(scored);
+  const ranked = rankBrand(scored.map((s) => s.brand)).map((b, i) => brandView(lookup.get(b.dealId)!, i + 1));
+  return c.json({ campaignId, brandSlug: campaign.brandSlug, budgetLeft: campaign.budgetLeft, ranked });
+});
+
+app.get('/creators/:slug/evaluation', async (c) => {
+  const creatorSlug = c.req.param('slug');
+  const scored = await scoreRows(c, await marketStub(c).dealsForCreator(creatorSlug));
+  const lookup = byDeal(scored);
+  const ranked = rankCreator(scored.map((s) => s.creator)).map((r, i) => creatorView(lookup.get(r.dealId)!, i + 1));
+  return c.json({ creatorSlug, ranked });
+});
+
+app.post('/market/match', async (c) => {
+  const b = await body(c);
+  const campaignIds = Array.isArray(b.campaignIds) ? b.campaignIds.filter((x): x is string => typeof x === 'string' && !!x.trim()) : [];
+  if (campaignIds.length === 0) return c.json({ error: 'campaignIds must be a non-empty string array' }, 400);
+  const headcount = b.headcount === undefined ? 3 : Number(b.headcount);
+  if (!Number.isInteger(headcount) || headcount < 1) return c.json({ error: 'headcount must be a positive integer' }, 400);
+
+  const campaigns = await Promise.all(campaignIds.map((id) => campaignStub(c, id).get()));
+  const scored = await scoreRows(c, await marketStub(c).dealsForCampaigns(campaignIds));
+  const lookup = byDeal(scored);
+
+  // Per-brand and per-creator preference lists (dealIds, best first) from the two rankers.
+  const brandRankings: Record<string, ReturnType<typeof brandView>[]> = {};
+  const brandRank = new Map<string, number>();
+  const brands: MarketInput['brands'] = campaigns.map((cv) => {
+    const mine = scored.filter((s) => s.deal.campaignId === cv.campaignId);
+    const ranked = rankBrand(mine.map((s) => s.brand));
+    ranked.forEach((r, i) => brandRank.set(r.dealId, i + 1));
+    brandRankings[cv.campaignId] = ranked.map((r, i) => brandView(lookup.get(r.dealId)!, i + 1));
+    // Demo: the whole campaign budget is on the table, not just what is left after reservations.
+    return { id: cv.campaignId, budget_usd: cv.budgetTotal, headcount, prefs: ranked.map((r) => r.dealId) };
+  });
+
+  const creatorRankings: Record<string, ReturnType<typeof creatorView>[]> = {};
+  const creatorRank = new Map<string, number>();
+  const creatorSlugs = [...new Set(scored.map((s) => s.deal.creatorSlug))];
+  const creators: MarketInput['creators'] = [];
+  for (const slug of creatorSlugs) {
+    const mine = scored.filter((s) => s.deal.creatorSlug === slug);
+    const ranked = rankCreator(mine.map((s) => s.creator));
+    ranked.forEach((r, i) => creatorRank.set(r.dealId, i + 1));
+    creatorRankings[slug] = ranked.map((r, i) => creatorView(lookup.get(r.dealId)!, i + 1));
+    const profile = (await dealStub(c, mine[0].deal.dealId).scoreInputs()).creatorProfile;
+    creators.push({ id: slug, slots: profile.public.availability?.slots_per_month ?? 2, prefs: ranked.map((r) => r.dealId) });
+  }
+
+  const input: MarketInput = {
+    brands, creators,
+    deals: scored.map((s) => ({ id: s.deal.dealId, brandId: s.deal.campaignId, creatorId: s.deal.creatorSlug, cash_usd: s.brand.cash_usd })),
+  };
+  const result = matchMarket(input);
+  const selectedSet = new Set(result.selected);
+  await Promise.all(scored.map((s) => dealStub(c, s.deal.dealId).setSelection(
+    selectedSet.has(s.deal.dealId) ? 'selected' : 'not_selected',
+    { brand: brandRank.get(s.deal.dealId) ?? 0, creator: creatorRank.get(s.deal.dealId) ?? 0 },
+  )));
+  return c.json({
+    selected: result.selected,
+    not_selected: scored.map((s) => s.deal.dealId).filter((id) => !selectedSet.has(id)),
+    explain: result.explain,
+    brandRankings,
+    creatorRankings,
+  });
 });
 
 // ---- admin ---------------------------------------------------------------------------------------

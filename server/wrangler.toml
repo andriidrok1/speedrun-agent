@@ -7,11 +7,16 @@ compatibility_flags = ["nodejs_compat"]
 bindings = [
   { name = "DEAL", class_name = "DealDO" },
   { name = "CAMPAIGN", class_name = "CampaignDO" },
+  { name = "MARKET", class_name = "MarketDO" },
 ]
 
 [[migrations]]
 tag = "v1"
 new_sqlite_classes = ["DealDO", "CampaignDO"]
+
+[[migrations]]
+tag = "v2"
+new_sqlite_classes = ["MarketDO"]
 
 [vars]
 PLATFORM_FEE_PCT = "10"

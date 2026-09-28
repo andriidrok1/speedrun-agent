@@ -33,3 +33,13 @@ Deal statuses the server emits: `negotiating → agreed → held → paid_out`, 
 Transcript for either party's page: `GET /deals/:id/transcript` (same payload for brand and creator, nothing private in it).
 
 Demo reset: `POST /admin/reset` `{ campaignId }`, or just create a new campaign.
+
+## Market: evaluation + match
+
+Every `agreed` deal is scored from both sides (`server/src/market/`). Each view only shows its own side.
+
+- `GET /campaigns/:id/evaluation` (brand view) → `{ campaignId, brandSlug, budgetLeft, ranked: [{ rank, dealId, creatorSlug, cash_usd, value_usd, surplus_usd, implied_cpm_usd, package }] }`, best first. No creator floors.
+- `GET /creators/:slug/evaluation` (creator view, across all campaigns) → `{ creatorSlug, ranked: [{ rank, dealId, brandSlug, campaignId, cash_usd, value_usd, surplus_usd, package }] }`. No brand caps.
+- `POST /market/match` `{ campaignIds: string[], headcount?: number }` (headcount = max creators per brand, default 3) → `{ selected, not_selected, explain: { [dealId]: reason }, brandRankings: { [campaignId]: [...] }, creatorRankings: { [creatorSlug]: [...] } }`. Writes `deal.selection` (`selected` / `not_selected`) and `deal.ranks` (`{ brand, creator }`, 1 = best) on every deal; `GET /deals/:id` returns them. `POST /deals/:id/fund` answers 409 for a `not_selected` deal.
+
+MCP tools: `evaluate_campaign`, `evaluate_creator`, `match_market`.

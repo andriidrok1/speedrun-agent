@@ -53,6 +53,10 @@ export type Deal = {
   acceptedOffer?: Offer;
   stripe?: { accountId?: string; paymentIntentId?: string; transferId?: string; refundId?: string };
   postUrl?: string;
+  /** Market layer: set by POST /market/match. null/undefined = not evaluated yet. */
+  selection?: 'selected' | 'not_selected' | null;
+  /** 1 = best for that side among its own tentative deals. */
+  ranks?: { brand: number; creator: number };
   createdAt: string;
   updatedAt: string;
 };
@@ -136,3 +140,15 @@ export type CreatorProfile = {
 };
 
 export const emptyPackage = (): Package => ({ cash_usd: 0, product: [], affiliate_pct: 0, store_credit_usd: 0, custom: [] });
+
+// ---- market layer (server/src/market/*) ----
+
+export type BrandScore = { dealId: string; surplus_usd: number; value_usd: number; cap_usd: number; cash_usd: number; implied_cpm_usd: number | null };
+export type CreatorScore = { dealId: string; surplus_usd: number; value_usd: number; required_usd: number; cash_usd: number };
+
+export type MarketInput = {
+  brands: { id: string; budget_usd: number; headcount: number; prefs: string[] }[];   // prefs = dealIds, best first
+  creators: { id: string; slots: number; prefs: string[] }[];                         // prefs = dealIds, best first
+  deals: { id: string; brandId: string; creatorId: string; cash_usd: number }[];
+};
+export type MarketResult = { selected: string[]; explain: Record<string, string> };

@@ -32,6 +32,9 @@ export const TOOLS = [
   { name: 'fund_deal', description: 'Brand pays an agreed deal (Stripe test mode). agreed -> held.', inputSchema: obj({ dealId: S.id('deal id') }, ['dealId']) },
   { name: 'verify_post', description: 'Verify the creator post is live and pay out. held -> paid_out on success; on failure the deal stays held and verified=false.', inputSchema: obj({ dealId: S.id('deal id'), url: { type: 'string', description: 'post URL (http/https)' }, mock: { type: 'boolean', description: 'true skips the network check and passes' } }, ['dealId', 'url']) },
   { name: 'expire_deal', description: 'Refund a held deal, budget returns to the campaign. held -> refunded.', inputSchema: obj({ dealId: S.id('deal id') }, ['dealId']) },
+  { name: 'evaluate_campaign', description: 'Brand view: the campaign\'s agreed deals ranked best first by brand surplus (value minus cash), with implied CPM and the package. Never shows creator-side numbers.', inputSchema: obj({ campaignId: S.id('campaign id') }, ['campaignId']) },
+  { name: 'evaluate_creator', description: 'Creator view: every agreed deal for this creator across all campaigns, ranked best first by creator surplus. Never shows brand-side caps.', inputSchema: obj({ creatorSlug: S.id('creator slug') }, ['creatorSlug']) },
+  { name: 'match_market', description: 'Run the market match over several campaigns: ranks every agreed deal for both sides, picks which go through (budget, headcount per brand, creator slots), and marks each deal selected / not_selected. fund_deal then refuses not_selected deals (409).', inputSchema: obj({ campaignIds: { type: 'array', items: { type: 'string' }, description: 'campaign ids to match together' }, headcount: { type: 'number', description: 'max creators per brand, default 3' } }, ['campaignIds']) },
 ];
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -86,6 +89,15 @@ export function mountMcp(app: App) {
       }
       case 'expire_deal':
         return call(env, 'POST', `/deals/${encodeURIComponent(str(a, 'dealId'))}/expire`);
+      case 'evaluate_campaign':
+        return call(env, 'GET', `/campaigns/${encodeURIComponent(str(a, 'campaignId'))}/evaluation`);
+      case 'evaluate_creator':
+        return call(env, 'GET', `/creators/${encodeURIComponent(str(a, 'creatorSlug'))}/evaluation`);
+      case 'match_market': {
+        const ids = Array.isArray(a.campaignIds) ? a.campaignIds.filter((x): x is string => typeof x === 'string') : [];
+        if (ids.length === 0) throw new Error('campaignIds is required (string[])');
+        return call(env, 'POST', '/market/match', { campaignIds: ids, ...(a.headcount !== undefined ? { headcount: Number(a.headcount) } : {}) });
+      }
       default:
         throw new Error(`unknown tool ${name}`);
     }

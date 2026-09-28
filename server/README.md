@@ -1,11 +1,14 @@
 # creator-deals server
 
-Cloudflare Worker (Hono) with two Durable Objects:
+Cloudflare Worker (Hono) with three Durable Objects:
 
 - `CampaignDO` (binding `CAMPAIGN`): the brand budget and a ledger of what each deal holds.
   `budgetLeft = budgetTotal - sum(reserved + committed)`.
 - `DealDO` (binding `DEAL`): one per deal. Runs the negotiation on create, stores the transcript in
   SQLite, and owns every status transition that touches Stripe.
+- `MarketDO` (binding `MARKET`, singleton `market`): index of every deal by campaign and creator, so
+  the market layer (`/campaigns/:id/evaluation`, `/creators/:slug/evaluation`, `/market/match`) can
+  score deals across campaigns. Demo: `cd server && npx tsx ../scripts/market-demo.ts`.
 
 Deal statuses: `agreed` (price reserved in the campaign) or `walked_away` after negotiation,
 then `held` (brand charged) -> `paid_out` (post verified, creator transferred) or `refunded` (expired).
@@ -53,6 +56,9 @@ Demo reset: `cd server && npx tsx ../scripts/seed.ts --run` creates a campaign, 
 | POST   | `/deals/:id/fund`        |                                          | `agreed` -> `held`. Connect account + PaymentIntent. 422 if cash < $0.50 (product-only deal); 409 if the creator account cannot receive transfers (brand is not charged). Sets `holdUntil` |
 | POST   | `/deals/:id/verify`      | `{ url, mock? }`                         | `held` -> `paid_out` on success (200); 422 and stays `held` otherwise. `mock: true` needs `VERIFY_MODE=mock` (else 403) |
 | POST   | `/deals/:id/expire`      |                                          | `held` -> `refunded`, budget returns. Also runs automatically at `holdUntil` (Durable Object alarm) |
+| GET    | `/campaigns/:id/evaluation` |                                       | brand view: agreed deals ranked best first (`rank, dealId, creatorSlug, cash_usd, value_usd, surplus_usd, implied_cpm_usd, package`); no creator-side numbers |
+| GET    | `/creators/:slug/evaluation` |                                      | creator view across campaigns: agreed deals ranked best first (`rank, dealId, brandSlug, campaignId, cash_usd, value_usd, surplus_usd, package`); no brand caps |
+| POST   | `/market/match`          | `{ campaignIds, headcount? }`            | ranks both sides, runs the match (budget, headcount per brand, creator slots), writes `selection` + `ranks` on each deal. Returns `{ selected, not_selected, explain, brandRankings, creatorRankings }`. `fund` then answers 409 for `not_selected` deals |
 | POST   | `/stripe/webhook`        | Stripe event (signed)                    | Verifies `stripe-signature`, logs payment / refund / transfer events per deal |
 | POST   | `/admin/reset`           | `{ campaignId }`                         | clears the campaign ledger for demo re-runs |
 

@@ -55,6 +55,9 @@ export type DealRecord = Deal & {
   stripe?: Deal['stripe'] & { chargeId?: string };
   /** When a held deal auto-refunds if the post was never verified (ISO). */
   holdUntil?: string;
+  /** Profile used to negotiate when the creator has no bundled profile (onboarded or derived from
+   *  the scraped Creator). Kept so the market layer can score the deal later. */
+  creatorProfile?: CreatorProfile;
 };
 export type DealWithTurns = DealRecord & { turns: Turn[] };
 export type VerifyOutcome = { verified: boolean; deal: DealRecord; verify: VerifyResult };
@@ -113,7 +116,9 @@ export class DealDO extends DurableObject<Env> {
       createdAt: ts,
       updatedAt: ts,
     };
+    if (!CREATORS[args.creatorSlug]) deal.creatorProfile = creator;
     this.save(deal);
+    await this.market().register({ dealId: deal.dealId, campaignId: deal.campaignId, brandSlug: deal.brandSlug, creatorSlug: deal.creatorSlug, createdAt: ts });
 
     // Negotiate in the background so the transcript fills in turn by turn (poll GET /deals/:id).
     const run = negotiate(this.env, args, brand, creator, now, { onTurn: (t) => this.insertTurn(t) })
@@ -170,12 +175,35 @@ export class DealDO extends DurableObject<Env> {
     return { dealId: deal.dealId, turns: this.turns() };
   }
 
+  // ---- market layer ----------------------------------------------------------------------------
+
+  /** Written by POST /market/match. */
+  setSelection(selection: Deal['selection'], ranks: Deal['ranks']): DealRecord {
+    const deal = this.must();
+    deal.selection = selection;
+    deal.ranks = ranks;
+    this.save(deal);
+    return deal;
+  }
+
+  /** Everything the scorers need that lives in this DO: the deal and the creator profile it was
+   *  negotiated with (bundled, or the onboarded/derived one persisted at create time). */
+  scoreInputs(): { deal: DealRecord; brandSlug: string; creatorSlug: string; creatorProfile: CreatorProfile } {
+    const deal = this.recover(this.must());
+    const creatorProfile = CREATORS[deal.creatorSlug] ?? deal.creatorProfile;
+    if (!creatorProfile) fail(500, `deal ${deal.dealId}: no creator profile stored for ${deal.creatorSlug} (created before the market layer?)`);
+    return { deal, brandSlug: deal.brandSlug, creatorSlug: deal.creatorSlug, creatorProfile };
+  }
+
   // ---- money -----------------------------------------------------------------------------------
 
   /** agreed -> held. Creates the creator's Connect account (once) and charges the brand. */
   async fund(): Promise<DealRecord> {
     const current = this.must();
     this.require(current, 'agreed');
+    if (current.selection === 'not_selected') {
+      fail(409, `deal ${current.dealId} was not selected by the market match (brand rank ${current.ranks?.brand ?? '?'}, creator rank ${current.ranks?.creator ?? '?'}). Re-run POST /market/match or fund a selected deal`);
+    }
     if (!(current.price >= 0.5)) {
       fail(422, `deal ${current.dealId}: cash part is $${current.price}. Product-only deals have nothing to charge (Stripe minimum is $0.50)`);
     }
@@ -330,6 +358,10 @@ export class DealDO extends DurableObject<Env> {
 
   private campaign(campaignId: string) {
     return this.env.CAMPAIGN.get(this.env.CAMPAIGN.idFromName(campaignId));
+  }
+
+  private market() {
+    return this.env.MARKET.get(this.env.MARKET.idFromName('market'));
   }
 
   private require(deal: DealRecord, status: DealStatus): void {
