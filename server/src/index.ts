@@ -391,6 +391,24 @@ app.post('/campaigns/:id/finalize', async (c) => {
 
   let record: FinalizeRecord | null = await campaign.finalized();
   if (!record) {
+    // The lazy auto-match may already have picked and paid (deals are held/paid_out, no longer
+    // `agreed`). Report those as the winners instead of 409ing, so the UI stops retrying.
+    const view = await campaign.get();
+    const done = view.deals.filter((d) => d.status === 'held' || d.status === 'paid_out');
+    if (done.length > 0) {
+      const selectedIds = new Set(done.map((d) => d.dealId));
+      const details = await Promise.all(view.deals.map((d) => dealStub(c, d.dealId).get()));
+      record = {
+        headcount,
+        winners: done.map((d) => ({ dealId: d.dealId, creatorSlug: d.creatorSlug, price: d.price, reason: 'Selected by the agent after comparing every offer, and already funded.' })),
+        others: details
+          .filter((d) => !selectedIds.has(d.dealId) && d.status === 'agreed')
+          .map((d) => ({ dealId: d.dealId, creatorSlug: d.creatorSlug, price: d.price, reason: d.selection === 'not_selected' ? 'Ranked below the winners for this campaign.' : 'Not selected.' })),
+      };
+      await campaign.setFinalized(record);
+    }
+  }
+  if (!record) {
     const m = await runMatch(c, [campaignId], headcount);
     if (m.scored.length === 0) return c.json({ error: `campaign ${campaignId} has no agreed deals to finalize` }, 409);
     const total = m.scored.length;
