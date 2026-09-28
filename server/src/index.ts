@@ -7,6 +7,7 @@ import { BRANDS } from './profiles.bundle';
 import type { Creator } from './types';
 import Stripe from 'stripe';
 import { makeStripe } from './stripe';
+import { mountMcp } from './mcp';
 export { DealDO } from './deal.do';
 export { CampaignDO } from './campaign.do';
 
@@ -156,5 +157,7 @@ app.post('/admin/reset', async (c) => {
   await campaignStub(c, campaignId).reset();
   return c.json({ ok: true, campaignId });
 });
+
+mountMcp(app); // MCP Streamable HTTP endpoint: POST /mcp (src/mcp.ts)
 
 export default app;

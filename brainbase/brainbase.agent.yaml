@@ -1,0 +1,27 @@
+# brainbase.agent.yaml — declarative agent manifest.
+# Committed to source control. Edit by hand, then `brainbase agent push`.
+
+schema: 1
+id: 0169c39a-33c1-4712-8e4e-d896814f602a
+harness: claude-code
+agent:
+  name: creator-deals-brand-manager
+  tagline: Brand-side campaign manager that runs creator negotiations, funding,
+    verification and reporting through the creator-deals MCP.
+instructions:
+  file: ./instructions.md
+playbooks: []
+skills: []
+mcp:
+  - name: creator-deals
+    url: https://api-production-4aa5.up.railway.app/mcp
+    is_enabled: true
+evals:
+  - id: 2c1a8f75-9a75-49c7-b365-6eb014878397
+    slug: only-tool-numbers
+    criteria: Every number, ID and status in the final report comes from a tool
+      result; nothing is invented.
+    enabled: true
+    judge_model: claude-sonnet-4-6
+    judge_type: model
+    output_shape: binary
