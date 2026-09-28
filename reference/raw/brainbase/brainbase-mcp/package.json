@@ -1,0 +1,33 @@
+{
+  "name": "@brainbase-labs/brainbase-mcp",
+  "version": "0.1.2",
+  "private": true,
+  "description": "Official Brainbase remote MCP connection with optional client packages and operating skill.",
+  "license": "MIT",
+  "homepage": "https://docs.brainbaselabs.com/docs/mcp",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/BrainbaseHQ/brainbase-mcp.git"
+  },
+  "bugs": {
+    "url": "https://github.com/BrainbaseHQ/brainbase-mcp/issues"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "validate": "node scripts/validate.mjs"
+  },
+  "files": [
+    ".agents",
+    ".claude-plugin",
+    ".codex-plugin",
+    ".mcp.json",
+    "brainbase.json",
+    "components",
+    "skills",
+    "LICENSE",
+    "README.md",
+    "SECURITY.md"
+  ]
+}

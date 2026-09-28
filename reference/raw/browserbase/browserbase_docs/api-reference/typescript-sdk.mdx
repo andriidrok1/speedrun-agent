@@ -1,0 +1,338 @@
+---
+title: "TypeScript SDK"
+description:
+  "All the features and utilities for fast TypeScript development with
+  Browserbase."
+---
+
+## Installation
+
+<CardGroup cols={2}>
+<CodeGroup>
+
+```bash npm
+npm install -S @browserbasehq/sdk
+```
+
+```bash pnpm
+pnpm install -S @browserbasehq/sdk
+```
+
+```bash yarn
+yarn add @browserbasehq/sdk
+```
+
+</CodeGroup>
+
+<Card title="browserbase/js-sdk" icon="github" href={"https://github.com/browserbase/js-sdk"}>
+  Explore the source code on Github.
+</Card>
+</CardGroup>
+
+---
+
+## `Browserbase(options): client`
+
+Creates a Browserbase client instance.
+
+```ts
+import { Browserbase } from "@browserbasehq/sdk";
+
+// Init the SDK
+const browserbase = new Browserbase();
+```
+
+### Parameters
+
+<Note>The `options` parameter is optional.</Note>
+
+<ResponseField name="options.apiKey" type="string">
+  Your [Browserbase API Key](https://www.browserbase.com/settings).
+
+If missing, will be loaded from `process.env.BROWSERBASE_API_KEY`.
+
+</ResponseField>
+<ResponseField name="options.projectId" type="string">
+  Your [Browserbase Project ID](https://www.browserbase.com/settings).
+
+If missing, will be loaded from `process.env.BROWSERBASE_PROJECT_ID`.
+
+</ResponseField>
+<ResponseField name="options.baseURL" type="string" default="https://www.browserbase.com">
+  A custom Session API Base URL.
+</ResponseField>
+<ResponseField name="options.baseConnectURL" type="string" default="wss://connect.browserbase.com">
+  A custom Connect API Base URL.
+</ResponseField>
+
+---
+
+## `client.load(url_or_urls, options)`
+
+Return the text or raw HTML from the given URL(s).
+
+```ts
+import { Browserbase } from "@browserbasehq/sdk";
+
+// Init the SDK
+const browserbase = new Browserbase();
+
+// Load a webpage
+const rawHtml = await browserbase.load("https://www.browserbase.com");
+
+// Load multiple webpages (returns iterator)
+const rawHtmls = browserbase.load([
+  "https://www.browserbase.com",
+  "https://docs.browserbase.com",
+]);
+
+for await (let rawHtml of rawHtmls) {
+  // ...
+}
+
+// Text-only mode
+const text = await browserbase.load("https://www.browserbase.com", {
+  textContent: true,
+});
+```
+
+### Parameters
+
+<ResponseField name="url_or_urls" type="string | string[]">
+  A valid URL or array of URL.
+</ResponseField>
+<Note>The `options` parameter is optional.</Note>
+<ResponseField name="options" type={"object"}>
+  _See below_
+</ResponseField>
+<ResponseField name="options.textContent" type="boolean" default={false}>
+  Return text only or raw HTML.
+</ResponseField>
+<ResponseField name="options.sessionId" type="string">
+  A valid [Session ID](/api-reference/create-a-session).
+</ResponseField>
+<ResponseField name="options.proxy" type={"boolean"} default={false}>
+  Enables [Proxying](/features/stealth-mode).
+</ResponseField>
+
+### Return type
+
+If `url` is a `string`, a `Promise<string>` is returned. If `url` is a
+`string[]`, a Generator is returned.
+
+---
+
+## `client.screenshot(url, options)`
+
+Return the `Blob` of a screenshot.
+
+```ts
+import { Browserbase } from "@browserbasehq/sdk";
+
+// Init the SDK
+const browserbase = new Browserbase();
+
+const blob = await browserbase.screenshot("https://www.browserbase.com");
+
+// Full page screenshot
+const blob2 = await browserbase.screenshot("https://www.browserbase.com", {
+  fullPage: true,
+});
+```
+
+### Parameters
+
+<ResponseField name="url" type="string">
+  A valid URL.
+</ResponseField>
+<Note>The `options` parameter is optional.</Note>
+<ResponseField name="options" type={"object"}>
+  _See below_
+</ResponseField>
+<ResponseField name="options.fullPage" type="boolean" default={false}>
+  Set to `true` to take a full-page screenshot.
+</ResponseField>
+
+### Return type
+
+More information on how to deal with `Blob`
+[here](/features/screenshots-and-downloads).
+
+---
+
+## `client.connectUrl(options)`
+
+Returns a [Connect API](/api-reference/connect) URL for Puppeteer or Playwright.
+
+```ts
+import { Browserbase } from "@browserbasehq/sdk";
+import { chromium } from "playwright-core";
+
+(async () => {
+  const browserbase = new Browserbase();
+  const browser = await chromium.connectOverCDP(browserbase.connectUrl());
+
+  // ...
+})();
+```
+
+### Parameters
+
+<Note>The `options` parameter is optional.</Note>
+<ResponseField name="options" type={"object"}>
+  _See below_
+</ResponseField>
+<ResponseField name="options.sessionId" type="string">
+  A valid [Session ID](/api-reference/create-a-session).
+</ResponseField>
+<ResponseField name="options.proxy" type={"boolean"} default={false}>
+  Enables [Proxying](/features/stealth-mode).
+</ResponseField>
+
+---
+
+## `client.listSessions()`
+
+Returns the [list of Sessions](/api-reference/list-all-sessions).
+
+```ts
+import { Browserbase } from "@browserbasehq/sdk";
+
+const browserbase = new Browserbase();
+const sessions = await browserbase.listSessions();
+```
+
+### Return type
+
+<Note>
+  The returned `Session` type matches the Session API [`GET /v1/sessions`
+  endpoint](/api-reference/list-all-sessions) response type.
+</Note>
+
+---
+
+## `client.createSession(options)`
+
+Create a new Session.
+
+```ts
+import { Browserbase } from "@browserbasehq/sdk";
+
+const browserbase = new Browserbase();
+const { id: sessionId } = await browserbase.createSession({
+  fingerprint: { devices: ["mobile"] },
+});
+```
+
+### Parameters
+
+<Note>The `options` parameter is optional.</Note>
+<ResponseField name="options" type={"object"}>
+  _See below_
+</ResponseField>
+<ResponseField name="options.projectId" type="string">
+  A valid [Project ID](/api-reference/create-a-session).
+</ResponseField>
+<ResponseField name="options.extensionId" type="string">
+  A valid [Extension ID](/api-reference/upload-an-extension).
+</ResponseField>
+<ResponseField name="options.fingerprint" type="object">
+  See the [API Reference definition for
+  `fingerprint`](/api-reference/create-a-session).
+</ResponseField>
+
+### Return type
+
+<Note>
+  The returned `Session` type matches the Session API [`GET /v1/sessions`
+  endpoint](/api-reference/list-all-sessions) response type.
+</Note>
+---
+
+## `client.updateSession(sessionId, options)`
+
+Update a Session state.
+
+```ts
+import { Browserbase } from "@browserbasehq/sdk";
+
+const browserbase = new Browserbase();
+const { status } = await browserbase.updateSession("1234", {
+  projectId: "1234",
+  status: "REQUEST_RELEASE",
+});
+```
+
+### Parameters
+
+<ResponseField name="sessionId" required type={"string"}>
+  A valid Session ID.
+</ResponseField>
+<ResponseField name="options" type={"object"} required>
+  _See below_
+</ResponseField>
+<ResponseField
+  name="options.status"
+  type={`"NEW" | "CREATED" | "ERROR" | "RUNNING" | "REQUEST_RELEASE" | "RELEASING"`}
+  required
+>
+  A valid [Session state](/features/sessions#sessions-lifecycle).
+</ResponseField>
+<ResponseField name="options.projectId" type="string" required>
+  A valid [Project ID](https://www.browserbase.com/settings).
+</ResponseField>
+
+### Return type
+
+<Note>
+  The returned `Session` type matches the Session API [`POST /v1/sessions/:id`
+  endpoint](/api-reference/update-a-session) response type.
+</Note>
+
+---
+
+## `client.getSessionDownloads(sessionId, filePath, retryInterval, retryCount)`
+
+Retrieve and save a Session's downloads on disk.
+
+```ts
+import { Browserbase } from "@browserbasehq/sdk";
+import { chromium } from "playwright-core";
+
+(async () => {
+  const browserbase = new Browserbase();
+  const { id: sessionId } = await browserbase.createSession();
+  const browser = await chromium.connectOverCDP(
+    browserbase.connectUrl({ sessionId }),
+  );
+
+  // ...navigate the page and take actions...
+
+  await browserbase.getSessionDownloads(sessionId, "downloads.zip");
+})();
+```
+
+<Info>
+
+During a Session, files are sync in real time; the size of your downloads might
+affect their immediate availability through the `/downloads` endpoint.
+
+The `getSessionDownloads()` method provides a retry mechanism to cope with this
+use case.
+
+</Info>
+
+### Parameters
+
+<ResponseField name="sessionId" required type={"string"}>
+  A valid Session ID.
+</ResponseField>
+<ResponseField name="filePath" required type={"string"}>
+  A valid relative file path.
+</ResponseField>
+<ResponseField name="retryInterval" required type={"number"} default={2000}>
+  The time between each retry.
+</ResponseField>
+<ResponseField name="retryCount" required type={"number"} default={2}>
+  The number of retries.
+</ResponseField>

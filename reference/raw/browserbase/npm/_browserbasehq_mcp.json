@@ -1,0 +1,13 @@
+{
+  "fetched": "2026-09-28 via registry.npmjs.org/@browserbasehq/mcp",
+  "name": "@browserbasehq/mcp",
+  "dist-tags": {
+    "latest": "3.0.0"
+  },
+  "latest_published": "2026-03-31T01:51:52.916Z",
+  "bin": {
+    "mcp-server-browserbase": "cli.js"
+  },
+  "deprecated": null,
+  "description": "MCP server for AI web browser automation using Browserbase and Stagehand"
+}

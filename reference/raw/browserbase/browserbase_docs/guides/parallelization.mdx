@@ -1,0 +1,126 @@
+---
+title: "Speed up your automation with parallelization"
+sidebarTitle: "Parallelization"
+description:
+  "Leverage multiple browser instances in parallel with a simple task queue."
+---
+
+Some complex automation requires processing multiple pages and actions without
+resulting in an exponential duration. For example, a backup automation tool must
+access and back up hundreds of pages reliably and efficiently.
+
+As covered in the
+[Deep dive: BrowserContexts and Pages](/guides/browser-contexts-and-pages)
+guide, using multiple pages or contexts for parallelism will result in issues
+with Browserbase's persistent context. Instead, we recommend leveraging multiple
+browser instances as a pool to process actions on numerous pages in parallel.
+
+## Enable parallelism with a pool of Browser instances
+
+<Card
+  title={"Find the complete example on GitHub"}
+  href="https://github.com/browserbase/quickstart-playwright-js-parallelism"
+  icon={"github"}
+>
+  Clone this GitHub repo to get started with a Playwright parallelism setup
+</Card>
+
+<br />
+
+Let's walk through the code of our
+[example script](https://github.com/browserbase/quickstart-playwright-js-parallelism/blob/main/index.ts)
+processing hundreds of Wikipedia pages efficiently:
+
+<Steps>
+  <Step title="The processBrowserbaseTasks() utility">
+    The `processBrowserbaseTasks()` utility create 5 Browserbase Sessions and reuse the available pages between tasks:
+
+    ```ts
+    import { Page, chromium } from "playwright-core";
+
+    export async function processBrowserbaseTasks<R>(
+      tasks: ((page: Page) => Promise<R>)[]
+    ): Promise<R[]> {
+      const tasksQueue = tasks.slice();
+      const resultsQueue: R[] = [];
+
+      const createBrowserSession = async (browserWSEndpoint: string) => {
+        const browser = await chromium.connectOverCDP(browserWSEndpoint);
+        const page = await browser.newPage(); // Create a single page for this session
+
+        while (true) {
+          if (tasksQueue.length > 0) {
+            const task = tasksQueue.shift();
+            if (task) {
+              const result = await task(page);
+              resultsQueue.push(result);
+            }
+          } else {
+            break;
+          }
+        }
+
+        await page.close();
+        await browser.close();
+      };
+
+      const browserWSEndpoint = `wss://api.browserbase.com?apiKey=${process.env.BROWSERBASE_API_KEY}&enableProxy=true`;
+      const sessions = Array.from({ length: 5 }, () =>
+        createBrowserSession(browserWSEndpoint)
+      );
+
+      await Promise.all(sessions);
+
+      return resultsQueue;
+    }
+    ```
+
+  </Step>
+  <Step title="Creating a task to fetch each Wikipedia page">
+    Let's create a function that will be called with a `page` for each Wikipedia URL and return the `url`, `content` tuple:
+
+    ```ts
+    const tasks = loadUrlsFromFile("wikipedia_urls.txt").map(
+      (url) => async (page: Page) => {
+        console.log(`Processing ${url}...`);
+        await page.goto(url);
+        const content = await page.content();
+        return [url, content];
+      }
+    );
+    ```
+
+  </Step>
+  <Step title="Passing the tasks to `processBrowserbaseTasks()` and printing the results">
+    ```ts
+    const result = await processBrowserbaseTasks(tasks);
+    result.map(([url, content]) => {
+      console.log(url, content.substring(0, 200) + "...");
+    });
+    ```
+  </Step>
+  <Step title="Run the automation">
+    Let's now run our Wikipedia automation; you will notice that pages are processed by a group of 5:
+    ```bash
+    $ BROWSERBASE_PROJECT_ID=xxxxxxxxx BROWSERBASE_API_KEY=xxxxxxxxx node dist/index.js
+    Processing https://en.wikipedia.org/wiki/Patrick_Flynn_(hurler)...
+    Processing https://en.wikipedia.org/wiki/Environmental_radioactivity...
+    Processing https://en.wikipedia.org/wiki/Alexi_Ogando...
+    Processing https://en.wikipedia.org/wiki/Costantino_Maria_Attilio_Barneschi...
+    Processing https://en.wikipedia.org/wiki/Breaking_bulk...
+    Processing https://en.wikipedia.org/wiki/New_Hampshire_Route_122...
+    Processing https://en.wikipedia.org/wiki/David_Hoff...
+    Processing https://en.wikipedia.org/wiki/Neodesha,_Oklahoma...
+    Processing https://en.wikipedia.org/wiki/List_of_Bethel_Threshers_head_football_coaches...
+    Processing https://en.wikipedia.org/wiki/Thysanodonta_boucheti...
+    Processing https://en.wikipedia.org/wiki/Sturm_und_Drang_(play)...
+    Processing https://en.wikipedia.org/wiki/Maša_Kolanović...
+    Processing https://en.wikipedia.org/wiki/Hermitage_of_Sant'Onofrio,_Serramonacesca...
+    Processing https://en.wikipedia.org/wiki/Bill_Simpson_(racing_driver)...
+    Processing https://en.wikipedia.org/wiki/Dundee,_Oregon...
+    Processing https://en.wikipedia.org/wiki/Caragh_McMurtry...
+    Processing https://en.wikipedia.org/wiki/Palmar_metacarpal_veins...
+    Processing https://en.wikipedia.org/wiki/2000_Uzbek_presidential_election...
+    ```
+  </Step>
+</Steps>

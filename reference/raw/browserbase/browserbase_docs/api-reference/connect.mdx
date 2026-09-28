@@ -1,0 +1,194 @@
+---
+title: Connect API
+sidebarTitle: Connect to a Session
+description: "Connect or create a Session on-the-fly"
+---
+
+The Connect API is available both as:
+
+- a WebSocket endpoint: `wss://connect.browserbase.com`
+- an HTTP endpoint: `http://connect.browserbase.com/webdriver`
+
+Puppeteer and Playwright connect over the WebSocket API while Selenium relies on
+the HTTP API.
+
+## Puppeteer and Playwright: Connect over WebSocket
+
+### Authentication
+
+The Connect WebSocket API authentication relies on the `apiKey` query parameter
+as follows:
+
+<CodeGroup>
+
+```js Playwright (TypeScript)
+import { chromium } from "playwright-core";
+
+(async () => {
+  const browser = await chromium.connectOverCDP(
+    `wss://connect.browserbase.com?apiKey=${process.env.BROWSERBASE_API_KEY}`,
+  );
+
+  // ...
+})();
+```
+
+```python Playwright (Python)
+from playwright.sync_api import sync_playwright, Playwright
+
+def run(playwright: Playwright):
+    chromium = playwright.chromium
+    browser = chromium.connect_over_cdp('wss://connect.browserbase.com?apiKey='+ os.environ["BROWSERBASE_API_KEY"])
+    context = browser.contexts[0]
+    page = context.pages[0]
+
+with sync_playwright() as playwright:
+    run(playwright)
+```
+
+```js Puppeteer (TypeScript)
+import puppeteer from "puppeteer-core";
+
+(async () => {
+  const browser = await puppeteer.connect({
+    browserWSEndpoint: `wss://connect.browserbase.com?apiKey=${process.env.BROWSERBASE_API_KEY}`,
+  });
+
+  // ...
+})();
+```
+
+</CodeGroup>
+
+### Available query parameters
+
+On top of the `apiKey` query parameter, the `wss://connect.browserbase.com`
+endpoints offers the following optional parameters:
+
+<ParamField query="sessionId" type="string">
+  You can pass the ID of an [already created
+  Session](/api-reference/create-a-session).
+</ParamField>
+
+<ParamField query="enableProxy" type="boolean" default="false">
+  Enable proxy by passing `&enableProxy=true`. [Learn more about
+  Proxying](/features/stealth-mode#proxies-and-residential-ips).
+</ParamField>
+
+## Selenium: Connect over HTTP
+
+### Custom HTTP Agent and Authentication
+
+Selenium TypeScript and Python do not yet support connecting over a WebSocket.
+Instead, you'll need a provide a custom HTTP Agent that provide the required
+authentication header (`x-bb-api-key`) to connect to the
+`http://connect.browserbase.com/webdriver` endpoint as follows:
+
+<CodeGroup>
+
+```typescript TypeScript
+import http from "http";
+import webdriver from "selenium-webdriver";
+import chrome from "selenium-webdriver/chrome";
+
+async function createSession() {
+  const response = await fetch(`https://www.browserbase.com/v1/sessions`, {
+    method: "POST",
+    headers: {
+      "x-bb-api-key": process.env.BROWSERBASE_API_KEY,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ projectId: process.env.BROWSERBASE_PROJECT_ID }),
+  });
+  return await response.json();
+}
+
+(async () => {
+  const session = await createSession();
+
+  const customHttpAgent = new http.Agent({});
+  (customHttpAgent as any).addRequest = (req: any, options: any) => {
+    // Session ID needs to be set here
+    req.setHeader("session-id", session.id);
+    req.setHeader("x-bb-api-key", process.env.BROWSERBASE_API_KEY);
+    (http.Agent.prototype as any).addRequest.call(
+      customHttpAgent,
+      req,
+      options,
+    );
+  };
+
+  // We set a debuggerAddress so the server-side WebDriver can connect.
+  const options = new chrome.Options();
+  options.debuggerAddress("localhost:9223");
+
+  const driver = new webdriver.Builder()
+    .forBrowser("chrome")
+    .setChromeOptions(options)
+    .usingHttpAgent(customHttpAgent)
+    .usingServer(
+      `http://connect.browserbase.com/webdriver`, // Selenium only supports HTTP
+    )
+    .build();
+
+  await driver.get("https://www.browserbase.com");
+
+  // Make sure to quit the driver so your session is ended!
+  await driver.quit();
+})().catch((error) => console.error(error.message));
+```
+
+```python Python
+from selenium import webdriver
+from selenium.webdriver.remote.remote_connection import RemoteConnection
+from selenium.webdriver.common.desired_capabilities import DesiredCapabilities
+import requests
+import os
+
+def create_session():
+    url = 'https://www.browserbase.com/v1/sessions'
+    headers = {'Content-Type': 'application/json', 'x-bb-api-key': os.environ["BROWSERBASE_API_KEY"]}
+    response = requests.post(url, json={ "projectId": os.environ["BROWSERBASE_PROJECT_ID"] }, headers=headers)
+    return response.json()['id']
+
+
+class CustomRemoteConnection(RemoteConnection):
+    _session_id = None
+
+    def __init__(self, remote_server_addr: str, session_id: str):
+        super().__init__(remote_server_addr)
+        self._session_id = session_id
+
+    def get_remote_connection_headers(self, parsed_url, keep_alive=False):
+        headers = super().get_remote_connection_headers(parsed_url, keep_alive)
+        headers.update({'x-bb-api-key': os.environ["BROWSERBASE_API_KEY"]})
+        headers.update({'session-id': self._session_id})
+        return headers
+
+
+def run():
+    session_id = create_session()
+    custom_conn = CustomRemoteConnection('http://connect.browserbase.com/webdriver', session_id)
+    options = webdriver.ChromeOptions()
+    options.debugger_address = "localhost:9223"
+    driver = webdriver.Remote(custom_conn, options=options)
+    driver.get("https://www.browserbase.com")
+    get_title = driver.title
+    print(get_title)
+    # Make sure to quit the driver so your session is ended!
+    driver.quit()
+
+run()
+```
+
+</CodeGroup>
+
+### Available headers parameters
+
+<ParamField header="session-id" type="string" required>
+  The Session ID [created via the HTTP API](/api-reference/create-a-session).
+</ParamField>
+<ParamField header="enable-proxy" type="string" default="false">
+  Enable proxy by passing the `enable-proxy` header. [Learn more about
+  Proxying](/features/stealth-mode#proxies-and-residential-ips).
+</ParamField>

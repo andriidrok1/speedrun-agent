@@ -1,0 +1,13 @@
+{
+  "fetched": "2026-09-28 via registry.npmjs.org/@browserbasehq/stagehand",
+  "name": "@browserbasehq/stagehand",
+  "dist-tags": {
+    "v3-latest": "3.7.3",
+    "latest": "4.1.0",
+    "alpha": "4.2.0-alpha-163c74703bb7cb766e9e6f6d2a13dc2bbf2ddb1d"
+  },
+  "latest_published": "2026-09-09T08:11:14.730Z",
+  "bin": null,
+  "deprecated": null,
+  "description": "Browserbase's SDK for building browser agents"
+}

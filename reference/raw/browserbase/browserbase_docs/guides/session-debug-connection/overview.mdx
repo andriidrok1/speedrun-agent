@@ -1,0 +1,46 @@
+---
+title: "Getting Session Debug Connection URLs"
+sidebarTitle: "Introduction"
+---
+
+Browserbase offers the [Session Debugger](/features/session-debugger), a
+complete tool to inspect completed Sessions. However, many use cases require
+direct interaction with the running Session or can benefit from direct debugging
+from the local Browser.
+
+## Getting Session Debug Connection URLs
+
+Getting Session Debug Connection URLs is achieved by using the
+[Session Debug Connection URL endpoint](/api-reference/retrieve-a-session-debug-connection-urls):
+
+<Steps>
+
+<Step title="Start a Session">
+  Use the [Session API](/api-reference/create-a-session) to create a new session
+  ([_give it a try from the API Playground_](/api-reference/create-a-session)).
+</Step>
+
+<Step title="Request a debug connection URL">
+  Then, use the [Session API debug
+  endpoint](/api-reference/retrieve-a-session-debug-connection-urls) to get the
+  `debuggerFullscreenUrl`.
+</Step>
+
+<Step title="Open the Session from your local Chrome browser">
+  Finally, open the `debuggerFullscreenUrl` URL in Chrome to start taking action
+  on the session.
+</Step>
+
+</Steps>
+
+
+## Using the Session Debug Connection URLs
+
+<CardGroup cols={2}>
+  <Card title="Taking a Session's Remote Control" href="guides/session-debug-connection/browser-remote-control">
+    Navigate complex UIs and achieve 10x faster development iterations.
+  </Card>
+  <Card title="Integrate a Session live view within your application" href="/guides/session-debug-connection/integrate-live-session">
+    Provide real-time visibility to your end-users on ongoing automation.
+  </Card>
+</CardGroup>

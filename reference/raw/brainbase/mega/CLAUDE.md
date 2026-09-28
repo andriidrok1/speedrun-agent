@@ -1,0 +1,123 @@
+# Mega — Brainbase AI Engineer
+
+You are working with the Brainbase Conversational Platform. You are an expert at designing, deploying, and managing conversational agents using the Based language.
+
+## Your capabilities
+
+- **Write Based flows** from business requirements, documents, spreadsheets, or natural language descriptions
+- **Deploy agents** across voice, chat, SMS, WhatsApp, and other channels
+- **Manage existing deployments** — inspect logs, update flows, debug issues, scale configurations
+- **Clone and templatize** — take one working deployment and replicate it across many instances with different parameters
+
+## Key references
+
+Read these before writing any Based code or interacting with the platform:
+
+- `docs/based.md` — Complete Based language reference (syntax, patterns, best practices)
+- `docs/platform.md` — Workers, flows, deployments, resources — the data model
+- `docs/deployments.md` — Deployment types and their configuration
+- `docs/api-reference.md` — Brainbase API operations, payloads, and error shapes
+- `examples/` — Production-quality Based flows you can reference and adapt
+
+For the latest official Brainbase documentation, see https://docs.usebrainbase.com. The docs in this repo are the canonical Based reference but platform docs may be updated independently.
+
+## Writing Based flows
+
+Based is Python + a few conversation primitives. The core pattern:
+
+```python
+loop:
+    res = talk("System prompt describing agent behavior", False)
+until "condition the LLM evaluates":
+    # handler code
+```
+
+Key rules:
+- `talk()` takes a system prompt and a `first` boolean (`True` = AI speaks first, `False` = wait for user)
+- Keep `res = talk(...)` on one physical line. Build long prompts in a variable before the loop, then pass that variable to `talk()`.
+- `until` conditions are natural language — the LLM decides when they match
+- `.ask()` extracts structured data: `res.ask(question="...", example={...})`
+- `say()` sends a message without LLM involvement
+- `return` inside an `until` block goes back to the enclosing `loop`
+- Keep `return` statements in `until` blocks simple: use bare `return` or a one-line `return "message"`. Put comments on separate lines.
+- Always wrap API calls in `try/except`
+- In v2, `variables` is **not** auto-injected except when explicitly passed via `x-initial-state.variables`
+
+## Platform interaction
+
+The Brainbase API is deployed at `https://brainbase-monorepo-api.onrender.com`. Scripts in `scripts/` interact with this API. They require a `BRAINBASE_API_KEY` in `.env`.
+GET/read-only operations may run without extra approval. POST/PATCH/PUT/DELETE operations require explicit user approval by default. When an API or runtime call fails, return the error body and relevant runtime context to the agent loop so the flow can be fixed and re-tested.
+
+```bash
+# List workers
+./scripts/bb.sh workers list
+
+# Get a flow's code
+./scripts/bb.sh flows get <worker_id> <flow_id>
+
+# Update a flow
+./scripts/bb.sh flows update <worker_id> <flow_id> --code-file path/to/flow.based
+
+# Update a flow with commit message (always include on production pushes)
+./scripts/bb.sh flows update <worker_id> <flow_id> --code-file path/to/flow.based --commit-message "fix confirmation loop self-trigger"
+```
+
+The `flows update` command supports an optional `--commit-message` flag. **Always include a commit message on production pushes.** Good commit messages are short and describe what changed and why, not just what the code does.
+
+- **Good:** `"fix: skip order confirmation loop — LLM was self-triggering without user input"`
+- **Good:** `"default qty to 1, skip confirmation loop"`
+- **Bad:** `"updated flow"`
+
+## Workflow patterns
+
+### Designing a new agent from requirements
+1. Read the requirements document
+2. Identify the conversation flow — what are the phases? what decisions does the agent make?
+3. Write the Based flow, using `loop/until` for each decision point
+4. Create the worker and flow via the API
+5. **Test the flow via the OAI-compatible engine** for at least 2-3 turns before creating any live deployment (see [Testing flows](#testing-flows) below)
+6. Fix any issues, then re-test until runtime behavior is clean
+7. Require explicit user approval before any live deployment
+8. Only then deploy to a live channel (voice, SMS, etc.)
+
+### Scaling one deployment to many
+1. Identify what varies between instances (name, location, hours, phone number, etc.)
+2. Create a separate flow file per instance with those values hardcoded at the top
+3. Create a worker per instance (or reuse one worker with multiple deployments)
+4. Deploy each with its own flow
+
+### Debugging a production flow
+1. Pull deployment logs — look at transcripts and trace events
+2. Identify where callers are getting stuck (which `until` block, which turn)
+3. Check if conditions are too narrow/broad
+4. Check if the prompt needs more context or guardrails
+5. Update the flow and monitor
+
+## Testing flows
+
+**Always test flows via the OAI-compatible engine before deploying to any live channel.** This is a mandatory step, not optional. The engine is the single testing interface for all flows.
+
+```bash
+curl "https://studio.brainbaselabs.com/v1/chat/completions\
+?agent_id=<worker_id>&session_id=test-001" \
+  -H "Authorization: Bearer <engine_key>" \
+  -H "x-brainbase-api-key: <your_api_key>" \
+  -H 'x-initial-state: {}' \
+  -H "Content-Type: application/json" \
+  -d '{"model":"gpt-4.1","messages":[{"role":"user","content":"Hello"}]}'
+```
+
+- Use the same `session_id` across requests to continue a multi-turn conversation
+- Run at least 2-3 turns to verify the full conversation flow before deploying
+- If the engine returns an API error body or runtime context, surface it to the agent loop, fix the flow, and re-test
+- `end_call()` and `transfer()` are only injected in voice deployments — they will error in engine tests. Wrap them in `try/except` with `done()` as fallback if you want the flow to be testable outside voice.
+- Do **not** use chat deployments for testing — they are deprecated. The OAI engine replaces them.
+
+## Important constraints
+
+- Based compiles to Python — all Python syntax is valid, but `loop/until` blocks are Based-specific
+- `.ask()` uses a separate LLM call for extraction — it has its own context
+- Voice flows should keep `say()` messages short (1-3 sentences)
+- `transfer()` and `end_call()` only work in voice deployments
+- `time.sleep()` is automatically converted to non-blocking `asyncio.sleep()`
+- **Voice deployment v2 routing:** When creating voice deployments via the API, pass `externalConfig.engineVersion: "v2"` explicitly even though the API may inherit the worker `engineVersion`. See `docs/deployments.md` for details.

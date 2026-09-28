@@ -1,0 +1,36 @@
+---
+title: Session Debugger
+description: "Your real-time Session introspection assistant."
+---
+
+Session Debugger is accessible from the Dashboard by clicking on a Session item.
+The Session Debugger page provides all the tools to inspect a session and
+pinpoint possible problems like network issues, anti-bot mechanisms, or
+asynchronous events resulting in mismatches of selectors.
+
+A full video recording is available at the top, along with essential metrics
+(duration, status, resources used):
+
+<Frame>
+  <img src="/images/session-debugger/video-and-metrics.png" />
+</Frame>
+
+Followed by the timeline view, exposing each step of the Session in great detail
+(ex, list of user and network events):
+
+<Frame>
+  <img src="/images/session-debugger/timeline.png" />
+</Frame>
+
+Raw logs are also accessible, for example, to quickly filter errors:
+
+<Frame>
+  <img src="/images/session-debugger/logs.png" />
+</Frame>
+
+<Note>
+  - Logs can also be retrieved [using the Session
+  API](/api-reference/retrieve-a-session-logs). - Refer to the [Chrome DevTools
+  Protocol documentation](https://chromedevtools.github.io/devtools-protocol/)
+  for the list of available events.
+</Note>

@@ -1,0 +1,15 @@
+# brainbase.agent.yaml — declarative agent manifest.
+# Committed to source control. Edit by hand, then `brainbase agent push`.
+
+schema: 1
+harness: claude-code
+agent:
+  name: uap-smoke
+  tagline: Smoke test for brainbase-uap-harness.
+instructions:
+  text: You are a concise coding agent. Do exactly what is asked, nothing more.
+playbooks: []
+skills: []
+mcp: []
+evals: []
+id: 0c5a19ca-90f1-4019-a1da-680d98999ff8

@@ -1,0 +1,423 @@
+---
+title: "Deep dive: BrowserContexts and Pages"
+sidebarTitle: "BrowserContexts & Pages"
+description:
+  "Key concepts not to be confused with and how to use them with Browserbase."
+mode: "wide"
+---
+
+Most drivers (Playwright, Puppeteer) expose an API through `Browser`,
+`BrowserContext`, and `Page` objects.
+
+The boundaries between them can be blurry. This guide teaches you to avoid
+common pitfalls and how each concept relates to Browserbase's architecture.
+
+## What are BrowserContexts and Pages?
+
+A typical Playwright or Puppeteer program looks as follows:
+
+ <CodeGroup>
+
+    ```typescript Playwright (TypeScript)
+    import { chromium } from "playwright-core";
+
+    (async () => {
+      // 1. Get a Browser instance
+      const browser = await chromium.connectOverCDP(
+        `wss://connect.browserbase.com?apiKey=${process.env.BROWSERBASE_API_KEY}`
+      );
+
+      // 2. Get a BrowserContext
+      const defaultContext = browser.contexts()[0];
+      // 3. Get a Page
+      const page = defaultContext.pages()[0];
+
+      // 4. Act on Page
+      await page.goto("https://browserbase.com/");
+      await page.close();
+      await browser.close();
+    })().catch((error) => console.error(error.message));
+    ```
+
+    ```typescript Puppeteer (TypeScript)
+    import puppeteer from "puppeteer-core";
+
+    (async () => {
+      // 1. Get a Browser instance
+      const browser = await puppeteer.connect({
+        browserWSEndpoint:
+        `wss://connect.browserbase.com?apiKey=${process.env.BROWSERBASE_API_KEY}`
+      });
+
+      // 2. Get a Page
+      const page = await browser.newPage();
+
+      // 3. Act on Page
+      await page.goto("https://www.browserbase.com");
+      await page.close();
+      await browser.close();
+    })().catch((error) => console.error(error.message));
+    ```
+
+    ```python Playwright (Python)
+    from playwright.sync_api import sync_playwright, Playwright
+
+    def run(playwright: Playwright):
+        chromium = playwright.chromium
+        # 1. Get a Browser instance
+        browser = chromium.connect_over_cdp('wss://connect.browserbase.com?apiKey=${process.env.BROWSERBASE_API_KEY}')
+        # 2. Get a BrowserContext
+        context = browser.contexts[0]
+        # 3. Get a Page
+        page = context.pages[0]
+
+        # 4. Act on Page
+
+        # ...
+
+    with sync_playwright() as playwright:
+        run(playwright)
+    ```
+
+    </CodeGroup>
+
+<Note>
+
+Selenium (Python) do not provide BrowserContext and Pages,
+[see Dos and Don't](#dos).
+
+</Note>
+
+Let's look at the `Browser`, `BrowserContext`, and `Page` definitions by
+comparing them to our day-to-day Browser:
+
+| Concept          | Drive (Puppeteer/Playwright)                                   | My Browser                                           |
+| ---------------- | -------------------------------------------------------------- | ---------------------------------------------------- |
+| `Browser`        | A Browser instance (_dedicated cache, sessions_)               | The running Chrome application                       |
+| `BrowserContext` | A Browser Session (_dedicated cookies, shared cache_)          | Browser Window or Chrome Profile or Incognito Window |
+| `Page`           | A Browser tab (_dedicated history, shared cookies, and cache_) | Tabs                                                 |
+
+We can now visualize the relationship between them as follows:
+
+```mermaid
+flowchart
+
+  subgraph M ["Machine"]
+    subgraph B1 ["Browser (instance)"]
+      subgraph BC1 ["BrowserContext 1 (session)"]
+
+
+        subgraph P2 ["Page 2 (tab)"]
+          dom2["DOM"]-->frames2["Frames"]
+          events2["Events"]
+          workers2["Workers (WebWorkers)"]
+          history2["History"]
+        end
+
+        subgraph P1 ["Page 1 (tab)"]
+          dom1["DOM"]-->frames1["Frames"]
+          events1["Events"]
+          workers1["Workers (WebWorkers)"]
+          history1["History"]
+        end
+
+        cookies["Cookies"]
+        ls["LocalStorage"]
+        routing["Routing"]
+
+        P1<-->cookies
+        P1<-->ls
+        P2<-->cookies
+        P2<-->ls
+      end
+
+      P1<-->routing
+      P2<-->routing
+
+      routing<-->cache["Cache"]
+    end
+
+
+    subgraph MR ["Resources"]
+      fs["File System"]
+      cpus["CPUs"]
+      mem["Memory"]
+      gpus["GPUS"]
+      network["Network"]
+    end
+
+    B1<-->cpus
+    B1<-->mem
+    B1<-->gpus
+    routing<-->network
+
+    cache<-->fs
+    ls<-->fs
+
+    BC1<-->cache
+  end
+
+```
+
+`Browser`, `BrowserContext`, and `Page` are encapsulated concepts that enable
+developers to control different parts of the Browser.
+
+Browserbase removes the complexity of dealing with multiple `BrowserContext` by
+offering on-the-fly browsers with a unique context in which to interact.
+
+## How to use BrowserContexts and Pages with Browserbase
+
+Browserbase assigns each `Browser` to a
+[dedicated virtual machine](/under-the-hood) (with isolated resources -- unlike
+your local browser) with a unique `BrowserContext` leveraging the
+[Persistent Context API](https://playwright.dev/docs/api/class-browsertype#browser-type-launch-persistent-context).
+
+The combination of isolated resources and a unique `BrowserContext`
+[enables the support for Chrome Extensions](/features/browsers#loading-a-custom-extension)
+and reliable performances.
+
+In short, with Browserbase:
+
+> A Browser Session (`connectOverCDP()`) = Dedicated Browser + Unique
+> BrowserContext
+
+<br />
+
+Here are some dos and don'ts to help get the best out of Browserbase:
+
+### Dos
+
+<AccordionGroup>
+
+<Accordion title="Always grab the first Page and BrowserContext" defaultOpen>
+  <CodeGroup>
+
+    ```typescript Playwright (TypeScript)
+    import { chromium } from "playwright-core";
+
+    (async () => {
+      const browser = await chromium.connectOverCDP(
+        `wss://connect.browserbase.com?apiKey=${process.env.BROWSERBASE_API_KEY}`
+      );
+
+      // Make sure to grab the first BrowserContext and Page
+      const defaultContext = browser.contexts()[0];
+      const page = defaultContext.pages()[0];
+
+      // Act on Page
+      await page.goto("https://browserbase.com/");
+      await page.close();
+      await browser.close();
+    })().catch((error) => console.error(error.message));
+    ```
+
+    ```typescript Puppeteer (TypeScript)
+    import puppeteer from "puppeteer-core";
+
+    (async () => {
+      const browser = await puppeteer.connect({
+        browserWSEndpoint:
+        `wss://connect.browserbase.com?apiKey=${process.env.BROWSERBASE_API_KEY}`
+      });
+      // Make sure to grab the first Page
+      const page = await browser.newPage();
+
+      // Act on Page
+      await page.goto("https://www.browserbase.com");
+      await page.close();
+      await browser.close();
+    })().catch((error) => console.error(error.message));
+    ```
+
+    ```python Playwright (Python)
+    from playwright.sync_api import sync_playwright, Playwright
+
+    def run(playwright: Playwright):
+        chromium = playwright.chromium
+        browser = chromium.connect_over_cdp('wss://connect.browserbase.com?apiKey=${process.env.BROWSERBASE_API_KEY}')
+        # Make sure to grab the first BrowserContext and Page
+        context = browser.contexts[0]
+        page = context.pages[0]
+
+        # Act on Page
+
+        # ...
+
+    with sync_playwright() as playwright:
+        run(playwright)
+    ```
+
+    ```python Selenium (Python)
+    from selenium import webdriver
+    from selenium.webdriver.remote.remote_connection import RemoteConnection
+    from selenium.webdriver.common.desired_capabilities import DesiredCapabilities
+    import requests
+    import os
+
+    def run():
+        # see create_session and CustomRemoteConnection definition
+        #   at https://docs.browserbase.com/quickstart/selenium
+        session_id = create_session()
+        custom_conn = CustomRemoteConnection('http://connect.browserbase.com/webdriver', session_id)
+        options = webdriver.ChromeOptions()
+        options.debugger_address = "localhost:9223"
+        driver = webdriver.Remote(custom_conn, options=options)
+        driver.get("https://www.browserbase.com")
+
+        # Selenium don't have the concept of BrowserContext and Pages
+
+        get_title = driver.title
+        print(get_title)
+        # Make sure to quit the driver so your session is ended!
+        driver.quit()
+
+    run()
+    ```
+    </CodeGroup>
+
+</Accordion>
+
+<Accordion title="Create multiple Browser instances for parallelization">
+  <Card
+    title="Follow the complete guide on Parallelization"
+    icon="book"
+    iconType="light"
+    href="/guides/parallelization"
+  >
+    See how to setup multiple Browser instances to speed up your Automation.
+  </Card>
+</Accordion>
+
+</AccordionGroup>
+
+### Don'ts
+
+<AccordionGroup>
+
+<Accordion title="Don't use multiple BrowserContexts or Pages to speed up your automation" defaultOpen>
+  Using multiple contexts or pages breaks the Session recording and live debugger URLs. **Instead, [rely on multiple browser instances](/guides/parallelization)**.
+
+<CodeGroup>
+
+```typescript Playwright (TypeScript)
+import { chromium } from "playwright-core";
+
+(async () => {
+  const browser = await chromium.connectOverCDP(
+    `wss://connect.browserbase.com?apiKey=${process.env.BROWSERBASE_API_KEY}`,
+  );
+
+  const getContent = async (url: string) => {
+    const context = await browser.newContext();
+    const page = await context.newPage();
+
+    try {
+      await page.goto(url, {
+        waitUntil: "domcontentloaded",
+      });
+
+      return await page.content();
+    } finally {
+      await page.close();
+    }
+  };
+
+  await Promise.all(
+    ["https://www.google.com", "https://www.bing.com"].map(async (item) => {
+      const contents = [];
+
+      for (url in item.urls) {
+        contents.push(await getContent(url));
+      }
+
+      return contents;
+    }),
+  );
+  await browser.close();
+})().catch((error) => console.error(error.message));
+```
+
+```typescript Puppeteer (TypeScript)
+import puppeteer from "puppeteer";
+
+(async () => {
+  const browser = await puppeteer.connect({
+    browserWSEndpoint: `wss://connect.browserbase.com?apiKey=${process.env.BROWSERBASE_API_KEY}`,
+  });
+
+  const getContent = async (url) => {
+    const page = await browser.newPage();
+
+    try {
+      await page.goto(url, {
+        waitUntil: "domcontentloaded",
+      });
+
+      return await page.content();
+    } finally {
+      await page.close();
+    }
+  };
+
+  await Promise.all(
+    ["https://www.google.com", "https://www.bing.com"].map(async (url) => {
+      const contents = await getContent(url);
+      return contents;
+    }),
+  );
+  await browser.disconnect();
+})().catch((error) => console.error(error.message));
+```
+
+```python Playwright (Python)
+from playwright.sync_api import sync_playwright
+
+async def main():
+    async with sync_playwright() as p:
+        browser = await p.chromium.connect_over_cdp(
+            f'wss://connect.browserbase.com?apiKey={os.environ["BROWSERBASE_API_KEY"]}'
+        )
+
+        async def get_content(url):
+            context = await browser.new_context()
+            page = await context.new_page()
+
+            try:
+                await page.goto(url, wait_until="domcontentloaded")
+                return await page.content()
+            finally:
+                await page.close()
+
+        urls = ["https://www.google.com", "https://www.bing.com"]
+        contents = await asyncio.gather(*(get_content(url) for url in urls))
+        print(contents)
+
+        await browser.close()
+
+if __name__ == "__main__":
+    import os
+    import asyncio
+
+    asyncio.run(main())
+```
+
+</CodeGroup>
+
+</Accordion>
+
+<Accordion title="Don't use multiple Pages to reuse cookies or localStorage across multiple scenarios">
+
+Using multiple pages breaks the Session recording and live debugger URLs.
+**Instead, persist the session and reuse the default context and page**.
+
+  <Card
+      title="Follow the complete guide on Authentication"
+      icon="book"
+      iconType="light"
+      href="/guides/authentication#dealing-with-oauth-and-session-based-authentication-flows"
+    >
+    See how to reuse user sessions across multiple Browser Sessions.
+  </Card>
+</Accordion>
+
+</AccordionGroup>

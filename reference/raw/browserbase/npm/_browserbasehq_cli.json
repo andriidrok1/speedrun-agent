@@ -1,0 +1,13 @@
+{
+  "fetched": "2026-09-28 via registry.npmjs.org/@browserbasehq/cli",
+  "name": "@browserbasehq/cli",
+  "dist-tags": {
+    "latest": "0.5.7"
+  },
+  "latest_published": "2026-04-26T01:07:41.832Z",
+  "bin": {
+    "bb": "dist/main.js"
+  },
+  "deprecated": "The Browserbase CLI is now published as 'browse'. Please migrate by running: npm uninstall -g @browserbasehq/cli && npm install -g browse",
+  "description": "Browserbase CLI for platform APIs, functions, and browse passthrough."
+}

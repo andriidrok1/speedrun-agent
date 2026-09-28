@@ -1,0 +1,7 @@
+{
+  "fetched": "2026-09-28 via pypi.org/pypi/stagehand/json",
+  "name": "stagehand",
+  "version": "4.1.0",
+  "requires_python": ">=3.11",
+  "summary": "Browserbase's SDK for building browser agents"
+}

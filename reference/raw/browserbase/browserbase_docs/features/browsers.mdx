@@ -1,0 +1,250 @@
+---
+title: Browsers
+description:
+  "Fully capable Chrome instances with Extensions and remote control support."
+---
+
+Browserbase gives you access to a Chromium Browser (custom-built for advanced
+performances and [Stealth Mode](/features/stealth-mode)).
+
+## Configuration
+
+The Browser Sessions runs on with the following Chromium flags:
+
+- `--headless=new`
+- `--no-sandbox`
+- `--disable-blink-features=AutomationControlled`
+
+The viewport, user agents, and header configuration are handled by the
+[fingerprint mechanism](/features/stealth-mode).
+
+Downloads are enabled and stored by default,
+[accessible via the API](/features/sessions#downloading-files).
+
+## Resources & Limits
+
+Browser Sessions runs on fast and dedicated instances with isolated resources
+(storage, network, memory, and vCPUs).
+
+The following limits exist and are being worked on:
+
+- Only Chromium is available.
+- File uploads are untested; contact us if you have issues.
+- Browser instances currently run without GPUs; expect slower animations.
+
+## Patterns
+
+### Control the Browser remotely
+
+Some use cases benefit from human-in-the-loop functionality. As you may have
+noticed in the Playground, our browsers can be controlled remotely. Please note
+this is an experimental feature. We're still working on improving browser
+compatibility and reliability. For now, this page will only load on Chromium
+browsers.
+
+1. Use the Session API to
+   [create a new session](/api-reference/create-a-session).
+2. Then, use the
+   [Session API debug endpoint](/api-reference/retrieve-a-session-debug-connection-urls)
+   to get the `debuggerFullscreenUrl`.
+3. Finally, open the `debuggerFullscreenUrl` URL in Chrome to start taking
+   action on the session.
+
+The following sections provide use cases with ready-to-use snippets.
+
+<Card
+  title="Remote Control use cases"
+  icon="book"
+  iconType="light"
+  href="guides/session-debug-connection/overview"
+>
+  Explore how to navigate complex UIs and achieve 10x faster development
+  iterations.
+</Card>
+
+### Loading a custom extension
+
+A custom Chrome extension is necessary for some use cases to enable advanced
+browser features. Extension support with headless Chrome has always been
+limited, but with Browserbase, it's easy.
+
+1. First, use the
+   [Extension API upload endpoint](/api-reference/upload-an-extension) to upload
+   an extension and get back an extension `id`
+
+<Note>
+
+- You must upload a valid unpacked Chrome Extension in a .zip file format
+  containing a manifest.json at the root.
+- Starting a session with a Chrome Extension will increase session creation time
+  slightly, as we have to load the extension and restart the browser.
+
+</Note>
+
+2. Then, use the
+   [Session API create session endpoint](/api-reference/create-a-session) to
+   create a new session. Make sure to include `extensionId` in the body.
+3. Finally,
+   [connect to the browser using the `session id`](/api-reference/list-all-sessions):
+
+`wss://connect.browserbase.com?apiKey=${process.env.BROWSERBASE_API_KEY}&sessionId=${sessionId}`
+
+To confirm your extension is loaded, use the following snippet:
+
+<CodeGroup>
+
+```typescript Playwright (TypeScript)
+import { chromium } from "playwright-core";
+(async () => {
+  const session = await createSession();
+  // Specify the URL and expected title for the test
+  const url = "chrome://extensions";
+
+  // Launch a browser instance
+  const browser = await chromium.connectOverCDP(
+    `wss://connect.browserbase.com?apiKey=${process.env.BROWSERBASE_API_KEY}&sessionId=${session.id}`,
+  );
+
+  // Create a new page
+  const page = await browser.newPage();
+  // Navigate to the URL
+  await page.goto(url);
+  const element = await page
+    .getByRole("heading", { name: "My custom chrome extension" })
+    .textContent();
+
+  // Ensure the browser is closed after the test
+  await browser.close();
+})().catch((error) => console.error(error.message));
+```
+
+```typescript Playwright (TypeScript)
+const puppeteer = require("puppeteer");
+
+(async () => {
+  // Launch a browser instance
+  const browser = await puppeteer.connect({
+    browserWSEndpoint: `wss://connect.browserbase.com?apiKey=${process.env.BROWSERBASE_API_KEY}&sessionId=${session.id}`,
+  });
+
+  // Create a new page
+  const page = await browser.newPage();
+
+  // Specify the URL for the test
+  const url = "chrome://extensions";
+
+  // Navigate to the URL
+  await page.goto(url);
+
+  // Get the text content of the specified element
+  const element = await page.$eval("h1", (heading) => heading.textContent);
+
+  // Ensure the browser is closed after the test
+  await browser.close();
+})().catch((error) => console.error(error.message));
+```
+
+```python Playwight (Python)
+from playwright.sync_api import sync_playwright
+import requests
+import os
+
+def create_session():
+    url = 'https://www.browserbase.com/v1/sessions'
+    headers = {'Content-Type': 'application/json', 'x-bb-api-key': os.environ["BROWSERBASE_API_KEY"]}
+    json = {
+        "projectId": os.environ["BROWSERBASE_PROJECT_ID"],
+        # Provide your extensionId
+        "extensionId": "..."
+    }
+    response = requests.post(url, json=json, headers=headers)
+    return response.json()['id']
+
+def run():
+  with sync_playwright() as p:
+        session_id = create_session()
+        # Launch a browser instance
+        browser = p.chromium.connect_over_cdp(
+            f"wss://connect.browserbase.com?apiKey={os.environ['BROWSERBASE_API_KEY']}&sessionId={session.id}"
+        )
+
+        # Create a new page
+        page = browser.new_page()
+
+        # Specify the URL for the test
+        url = "chrome://extensions"
+
+        # Navigate to the URL
+        page.goto(url)
+
+        # Get the text content of the specified element
+        element = page.locator('h1').inner_text()
+
+        # Ensure the browser is closed after the test
+        browser.close()
+
+
+run()
+```
+
+```python Selenium (Python)
+from selenium import webdriver
+from selenium.webdriver.remote.remote_connection import RemoteConnection
+from selenium.webdriver.common.desired_capabilities import DesiredCapabilities
+import requests
+import os
+
+def create_session():
+    url = 'https://www.browserbase.com/v1/sessions'
+    headers = {'Content-Type': 'application/json', 'x-bb-api-key': os.environ["BROWSERBASE_API_KEY"]}
+    json = {
+        "projectId": os.environ["BROWSERBASE_PROJECT_ID"],
+        # Fingerprint options
+        "fingerprint": {
+            "locales": ["en", "en-US", "de"],
+            "operatingSystems": ["android"]
+        }
+    }
+    response = requests.post(url, json=json, headers=headers)
+    return response.json()['id']
+
+
+class CustomRemoteConnection(RemoteConnection):
+    _session_id = None
+
+    def __init__(self, remote_server_addr: str, session_id: str):
+        super().__init__(remote_server_addr)
+        self._session_id = session_id
+
+    def get_remote_connection_headers(self, parsed_url, keep_alive=False):
+        headers = super().get_remote_connection_headers(parsed_url, keep_alive)
+        headers.update({'x-bb-api-key': os.environ["BROWSERBASE_API_KEY"]})
+        headers.update({'session-id': self._session_id})
+        return headers
+
+
+def run():
+    session_id = create_session()
+    custom_conn = CustomRemoteConnection('http://connect.browserbase.com/webdriver', session_id)
+    options = webdriver.ChromeOptions()
+    options.debugger_address = "localhost:9223"
+    driver = webdriver.Remote(custom_conn, options=options)
+    driver.get(url = "chrome://extensions")
+    get_title = driver.title
+    print(get_title)
+    # Make sure to quit the driver so your session is ended!
+    driver.quit()
+
+run()
+```
+
+</CodeGroup>
+
+<Card
+  title="Extensions API"
+  icon="puzzle"
+  iconType="light"
+  href="/api-reference/upload-an-extension"
+>
+  Explore how to upload a custom Extension
+</Card>

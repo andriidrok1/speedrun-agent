@@ -1,0 +1,43 @@
+{
+  "schemaVersion": 1,
+  "name": "brainbase/brainbase-mcp",
+  "version": "0.1.2",
+  "description": "Brainbase MCP connection and revision-safe managed-agent guidance.",
+  "sourceHarness": "codex",
+  "createdAt": "2026-07-17T00:00:00.000Z",
+  "components": [
+    {
+      "type": "skill",
+      "slug": "brainbase-mcp",
+      "path": "skills/brainbase-mcp",
+      "checksum": "148c06816a375827ac5174ba33fe153c905812c5660a122a3fb06f3ec4852f33",
+      "scope": "global",
+      "description": "Build and operate Brainbase managed agents safely."
+    },
+    {
+      "type": "mcp",
+      "slug": "brainbase",
+      "path": "components/mcps/brainbase",
+      "checksum": "ec974dc35957451f6b8f627db831493fc5dc008e329441b5bdd728d00f2225ce",
+      "scope": "global",
+      "description": "Credential-free Brainbase remote MCP connection.",
+      "meta": {
+        "mcp": {
+          "type": "http",
+          "url": "https://api.brainbaselabs.com/mcp"
+        }
+      }
+    }
+  ],
+  "category": "Developer Tools",
+  "license": "MIT",
+  "authors": [
+    "Brainbase Labs"
+  ],
+  "homepage": "https://docs.brainbaselabs.com/docs/mcp",
+  "repository": "https://github.com/BrainbaseHQ/brainbase-mcp",
+  "targets": [
+    "codex",
+    "claude-code"
+  ]
+}

@@ -1,0 +1,101 @@
+---
+title: "Python SDK"
+description: "All the features fast Python development with Browserbase."
+---
+
+## Installation
+
+<CardGroup cols={2}>
+
+<CodeGroup>```bash pip pip install browserbase ```</CodeGroup>
+
+<Card title="browserbase/python-sdk" icon="github" href={"https://github.com/browserbase/python-sdk"}>
+  Explore the source code on Github.
+</Card>
+</CardGroup>
+
+---
+
+## `Browserbase(): client`
+
+Creates a Browserbase client instance.
+
+```python
+from browserbase import Browserbase
+
+# Init the SDK
+browserbase = Browserbase(os.environ["BROWSERBASE_API_KEY"])
+```
+
+### Parameters
+
+<ResponseField name="api_key" type="string">
+  Your [Browserbase API Key](https://www.browserbase.com/settings).
+
+If missing, will be loaded from `os.environ["BROWSERBASE_API_KEY"]`.
+
+</ResponseField>
+
+---
+
+## `client.load(url_or_urls, text_content=)`
+
+Return the text or raw HTML from the given URL(s).
+
+```python
+from browserbase import Browserbase
+
+# Init the SDK
+browserbase = Browserbase(os.environ["BROWSERBASE_API_KEY"])
+
+# Load a webpage
+result = browserbase.load("https://example.com")
+
+# Load multiple webpages (returns iterator)
+result = browserbase.load(["https://example.com"])
+
+# Text-only mode
+result = browserbase.load("https://example.com", text_content=True)
+
+```
+
+### Parameters
+
+<ResponseField name="url_or_urls" type="string | string[]" required>
+  A valid URL or array of URL.
+</ResponseField>
+
+<ResponseField name="text_content" type="boolean" default={false}>
+  Return text only or raw HTML.
+</ResponseField>
+
+---
+
+## `client.screenshot(url, full_page=)`
+
+Return a screenshot as `bytes`.
+
+```python
+from browserbase import Browserbase
+
+# Init the SDK
+browserbase = Browserbase(os.environ["BROWSERBASE_API_KEY"])
+
+# Screenshot (returns bytes)
+result = browserbase.screenshot("https://example.com", full_page=True)
+
+```
+
+### Parameters
+
+<ResponseField name="url" type="string" required>
+  A valid URL.
+</ResponseField>
+<ResponseField name="full_page" type="boolean" default={false}>
+  Set to `true` to take a full-page screenshot.
+</ResponseField>
+
+### Return type
+
+More information on how to deal with `bytes`
+[here](/features/screenshots-and-downloads).

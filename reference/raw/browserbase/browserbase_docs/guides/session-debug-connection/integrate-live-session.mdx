@@ -1,0 +1,188 @@
+---
+title: "Integrate a Session live view within your application"
+sidebarTitle: "Integrate a Session live view"
+description:
+  "Provide real-time visibility to your end-users on ongoing automation."
+mode: "wide"
+---
+
+
+The Session Debug Connection URLs can be used to integrate a live view of ongoing automation within your application.
+
+For example, an application enabling users to configure advanced health checks based on pages' content can benefit
+from allowing the users to see the health check recording in case of false positives.
+
+
+## Integrating a live Session iframe within your application
+
+
+<Steps>
+
+<Step title="Store the Session ID of each automation run">
+  Store the Session ID of each running Session by creating a Session using the [Session API](/api-reference/create-a-session) to store it and pass it to the connect URL as follows:
+
+  <CodeGroup>
+
+  ```typescript Playwright (TypeScript)
+    import { chromium } from "playwright-core";
+
+    async function createSession() {
+      const response = await fetch(`https://www.browserbase.com/v1/sessions`, {
+        method: "POST",
+        headers: {
+          'x-bb-api-key': `${process.env.BROWSERBASE_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          projectId: process.env.BROWSERBASE_PROJECT_ID,
+        }),
+      });
+      const json = await response.json();
+      return json;
+    }
+
+    (async () => {
+      const { id } = await createSession();
+
+      // TODO:  store the Session `id` to database
+
+      const browser = await chromium.connectOverCDP(
+        // we connect to the Session created via the API
+        `wss://connect.browserbase.com?apiKey=${process.env.BROWSERBASE_API_KEY}&sessionId=${sessionId}`,
+      );
+
+      // ...
+    })()
+  ```
+
+  ```typescript Puppeteer (TypeScript)
+  import puppeteer from 'puppeteer';
+  const fetch = require('node-fetch');
+
+  async function createSession() {
+    const response = await fetch(`https://www.browserbase.com/v1/sessions`, {
+      method: "POST",
+      headers: {
+        'x-bb-api-key': `${process.env.BROWSERBASE_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        projectId: process.env.BROWSERBASE_PROJECT_ID,
+      }),
+    });
+    const json = await response.json();
+    return json;
+  }
+
+  (async () => {
+    const { id } = await createSession();
+
+    // TODO:  store the Session `id` to database
+
+    const browser = await puppeteer.connect({
+      browserWSEndpoint: `wss://connect.browserbase.com?apiKey=${process.env.BROWSERBASE_API_KEY}&sessionId=${id}`,
+    });
+
+    // ...
+  })();
+
+  ```
+
+  ```python Python
+  from playwright.async_api import async_playwright
+  import asyncio
+  import aiohttp
+
+  async def create_session():
+      async with aiohttp.ClientSession() as session:
+          async with session.post(
+              'https://www.browserbase.com/v1/sessions',
+              headers={
+                  'x-bb-api-key': f'{os.environ["BROWSERBASE_API_KEY"]}',
+                  'Content-Type': 'application/json'
+              },
+              json={'projectId': f'{os.environ["BROWSERBASE_PROJECT_ID"]}'}
+          ) as response:
+              json_data = await response.json()
+              return json_data
+
+  async def main():
+      async with async_playwright() as p:
+          browser = await p.chromium.connect_over_cdp(
+              f'wss://connect.browserbase.com?apiKey={os.environ["BROWSERBASE_API_KEY"]}&sessionId={session_id}'
+          )
+
+          # Your code using the browser goes here
+
+  if __name__ == '__main__':
+      loop = asyncio.get_event_loop()
+      session_id = loop.run_until_complete(create_session())
+      loop.run_until_complete(main())
+  ```
+
+  </CodeGroup>
+
+
+</Step>
+
+<Step title="Request a debug connection URL by using the Session ID">
+  If a user tries to access the live view of a running automation, retrieve the Session Debug Connection URLs as follows:
+
+  <CodeGroup>
+  ```typescript TypeScript
+    async function retrieveDebugConnectionURL(sessionId: string) {
+      const response = await fetch(
+        `https://www.browserbase.com/v1/sessions/${sessionId}/debug`,
+        {
+          method: "GET",
+          headers: {
+            'x-bb-api-key': `${process.env.BROWSERBASE_API_KEY}`,
+          },
+        },
+      );
+      const json = await response.json();
+      return json.debuggerFullscreenUrl;
+    }
+
+    const debugConnectionURL = await retrieveDebugConnectionURL()
+
+    // forward `debugConnectionURL` to the front-end
+  ```
+
+  ```python Python
+  import aiohttp
+  import os
+
+  async def retrieve_debug_connection_url(session_id):
+      url = f"https://www.browserbase.com/v1/sessions/{session_id}/debug"
+      headers = {
+          'x-bb-api-key': os.environ.get('BROWSERBASE_API_KEY', '')
+      }
+      async with aiohttp.ClientSession() as session:
+          async with session.get(url, headers=headers) as response:
+              json_data = await response.json()
+              return json_data.get('debuggerFullscreenUrl', None)
+
+  ```
+
+  </CodeGroup>
+
+  Let's forward the `debugConnectionURL` to the front end to create the final live view with an iframe.
+
+</Step>
+
+<Step title="Integrate an iframe within your front-end">
+  The front-end can now display a live running Session by loading the `debugConnectionURL` in a read-only iframe:
+
+  ```html
+    <iframe
+      src="{debugConnectionURL}"
+      sandbox="allow-same-origin allow-scripts"
+      style='pointer-events: none;'
+    /> 
+  ```
+
+  <Note>To enable your end users to interact with the live Session, remove the `style='pointer-events: none;'` line.</Note>
+</Step>
+
+</Steps>

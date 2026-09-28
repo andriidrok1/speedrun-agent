@@ -1,0 +1,196 @@
+post:
+  tags:
+    - Actors/Actor runs
+  summary: Run Actor synchronously and get dataset items
+  description: |
+    Runs a specific Actor and returns its dataset items.
+
+    The POST payload including its `Content-Type` header is passed as `INPUT` to
+    the Actor (usually `application/json`).
+    The HTTP response contains the Actors dataset items, while the format of
+    items depends on specifying dataset items' `format` parameter.
+
+    You can send all the same options in parameters as the [Get Dataset
+    Items](#/reference/datasets/item-collection/get-items) API endpoint.
+
+    The Actor is started with the default options; you can override them using
+    URL query parameters.
+    If the Actor run exceeds 300<!-- MAX_ACTOR_JOB_SYNC_WAIT_SECS --> seconds,
+    the HTTP response will return the 408 status code (Request Timeout).
+
+    Beware that it might be impossible to maintain an idle HTTP connection for a
+    long period of time,
+    due to client timeout or network conditions. Make sure your HTTP client is
+    configured to have a long enough connection timeout.
+    If the connection breaks, you will not receive any information about the run
+    and its status.
+
+    To run the Actor asynchronously, use the [Run
+    Actor](#/reference/actors/run-collection/run-actor) API endpoint instead.
+  operationId: actor_runSyncGetDatasetItems_post
+  parameters:
+    - $ref: "../../components/parameters/runAndBuildParameters.yaml#/actorId"
+    - $ref: "../../components/parameters/runAndBuildParameters.yaml#/timeout"
+    - $ref: "../../components/parameters/runAndBuildParameters.yaml#/memory"
+    - $ref: "../../components/parameters/runAndBuildParameters.yaml#/maxItems"
+    - $ref: "../../components/parameters/runAndBuildParameters.yaml#/maxTotalChargeUsd"
+    - $ref: "../../components/parameters/runAndBuildParameters.yaml#/restartOnError"
+    - $ref: "../../components/parameters/runAndBuildParameters.yaml#/build"
+    - $ref: "../../components/parameters/runAndBuildParameters.yaml#/webhooks"
+    - $ref: "../../components/parameters/datasetParameters.yaml#/format"
+    - $ref: "../../components/parameters/datasetParameters.yaml#/clean"
+    - $ref: "../../components/parameters/paginationParameters.yaml#/offset"
+    - $ref: "../../components/parameters/datasetParameters.yaml#/limit"
+    - $ref: "../../components/parameters/datasetParameters.yaml#/fields"
+    - $ref: "../../components/parameters/datasetParameters.yaml#/outputFields"
+    - $ref: "../../components/parameters/datasetParameters.yaml#/omit"
+    - $ref: "../../components/parameters/datasetParameters.yaml#/unwind"
+    - $ref: "../../components/parameters/datasetParameters.yaml#/flatten"
+    - $ref: "../../components/parameters/datasetParameters.yaml#/descDataset"
+    - $ref: "../../components/parameters/datasetParameters.yaml#/attachment"
+    - $ref: "../../components/parameters/datasetParameters.yaml#/delimiter"
+    - $ref: "../../components/parameters/datasetParameters.yaml#/bom"
+    - $ref: "../../components/parameters/datasetParameters.yaml#/xmlRoot"
+    - $ref: "../../components/parameters/datasetParameters.yaml#/xmlRow"
+    - $ref: "../../components/parameters/datasetParameters.yaml#/skipHeaderRow"
+    - $ref: "../../components/parameters/datasetParameters.yaml#/skipHidden"
+    - $ref: "../../components/parameters/datasetParameters.yaml#/skipEmpty"
+    - $ref: "../../components/parameters/datasetParameters.yaml#/simplified"
+    - $ref: "../../components/parameters/datasetParameters.yaml#/view"
+    - $ref: "../../components/parameters/datasetParameters.yaml#/skipFailedPages"
+    - $ref: "../../components/parameters/datasetParameters.yaml#/feedTitle"
+    - $ref: "../../components/parameters/datasetParameters.yaml#/feedDescription"
+  requestBody:
+    description: ""
+    content:
+      application/json:
+        schema:
+          type: object
+        example:
+          foo: bar
+      "*/*":
+        schema: {}
+    required: true
+  responses:
+    "201":
+      description: ""
+      headers:
+        $ref: ../../components/headers/ApifyPaginationHeaders.yaml
+      content:
+        application/json:
+          schema:
+            type: array
+            items:
+              type: object
+          example:
+            - myValue: some value
+              myOtherValue: some other value
+    "400":
+      $ref: ../../components/responses/BadRequest.yaml
+    "401":
+      $ref: ../../components/responses/Unauthorized.yaml
+    "402":
+      $ref: ../../components/responses/PaymentRequired.yaml
+    "403":
+      $ref: ../../components/responses/Forbidden.yaml
+    "404":
+      $ref: ../../components/responses/NotFound.yaml
+    "408":
+      $ref: ../../components/responses/Timeout.yaml
+    "429":
+      $ref: ../../components/responses/TooManyRequests.yaml
+  deprecated: false
+  x-legacy-doc-urls:
+    - https://docs.apify.com/api/v2#/reference/actors/run-actor-synchronously-and-get-dataset-items/run-actor-synchronously-with-input-and-get-dataset-items
+    - https://docs.apify.com/api/v2#/reference/actors/run-actor-synchronously-with-input-and-get-dataset-items
+    - https://docs.apify.com/api/v2#tag/ActorsRun-Actor-synchronously-and-get-dataset-items/operation/act_runSyncGetDatasetItems_post
+get:
+  tags:
+    - Actors/Actor runs
+  summary: Run Actor synchronously without input and get dataset items
+  description: |
+    Runs a specific Actor and returns its dataset items.
+    The run must finish in 300<!-- MAX_ACTOR_JOB_SYNC_WAIT_SECS --> seconds
+    otherwise the API endpoint returns a timeout error.
+    The Actor is not passed any input.
+
+    It allows to send all possible options in parameters from [Get Dataset
+    Items](#/reference/datasets/item-collection/get-items) API endpoint.
+
+    Beware that it might be impossible to maintain an idle HTTP connection for a
+    long period of time,
+    due to client timeout or network conditions. Make sure your HTTP client is
+    configured to have a long enough connection timeout.
+    If the connection breaks, you will not receive any information about the run
+    and its status.
+
+    To run the Actor asynchronously, use the [Run
+    Actor](#/reference/actors/run-collection/run-actor) API endpoint instead.
+  operationId: actor_runSyncGetDatasetItems_get
+  parameters:
+    - $ref: "../../components/parameters/runAndBuildParameters.yaml#/actorId"
+    - $ref: "../../components/parameters/runAndBuildParameters.yaml#/timeout"
+    - $ref: "../../components/parameters/runAndBuildParameters.yaml#/memory"
+    - $ref: "../../components/parameters/runAndBuildParameters.yaml#/maxItems"
+    - $ref: "../../components/parameters/runAndBuildParameters.yaml#/maxTotalChargeUsd"
+    - $ref: "../../components/parameters/runAndBuildParameters.yaml#/restartOnError"
+    - $ref: "../../components/parameters/runAndBuildParameters.yaml#/build"
+    - $ref: "../../components/parameters/runAndBuildParameters.yaml#/webhooks"
+    - $ref: "../../components/parameters/datasetParameters.yaml#/format"
+    - $ref: "../../components/parameters/datasetParameters.yaml#/clean"
+    - $ref: "../../components/parameters/paginationParameters.yaml#/offset"
+    - $ref: "../../components/parameters/datasetParameters.yaml#/limit"
+    - $ref: "../../components/parameters/datasetParameters.yaml#/fields"
+    - $ref: "../../components/parameters/datasetParameters.yaml#/outputFields"
+    - $ref: "../../components/parameters/datasetParameters.yaml#/omit"
+    - $ref: "../../components/parameters/datasetParameters.yaml#/unwind"
+    - $ref: "../../components/parameters/datasetParameters.yaml#/flatten"
+    - $ref: "../../components/parameters/datasetParameters.yaml#/descDataset"
+    - $ref: "../../components/parameters/datasetParameters.yaml#/attachment"
+    - $ref: "../../components/parameters/datasetParameters.yaml#/delimiter"
+    - $ref: "../../components/parameters/datasetParameters.yaml#/bom"
+    - $ref: "../../components/parameters/datasetParameters.yaml#/xmlRoot"
+    - $ref: "../../components/parameters/datasetParameters.yaml#/xmlRow"
+    - $ref: "../../components/parameters/datasetParameters.yaml#/skipHeaderRow"
+    - $ref: "../../components/parameters/datasetParameters.yaml#/skipHidden"
+    - $ref: "../../components/parameters/datasetParameters.yaml#/skipEmpty"
+    - $ref: "../../components/parameters/datasetParameters.yaml#/simplified"
+    - $ref: "../../components/parameters/datasetParameters.yaml#/view"
+    - $ref: "../../components/parameters/datasetParameters.yaml#/skipFailedPages"
+    - $ref: "../../components/parameters/datasetParameters.yaml#/feedTitle"
+    - $ref: "../../components/parameters/datasetParameters.yaml#/feedDescription"
+  responses:
+    "201":
+      description: ""
+      headers:
+        $ref: ../../components/headers/ApifyPaginationHeaders.yaml
+      content:
+        application/json:
+          schema:
+            type: array
+            items:
+              type: object
+          example:
+            - myValue: some value
+              myOtherValue: some other value
+    "400":
+      $ref: ../../components/responses/BadRequest.yaml
+    "401":
+      $ref: ../../components/responses/Unauthorized.yaml
+    "402":
+      $ref: ../../components/responses/PaymentRequired.yaml
+    "403":
+      $ref: ../../components/responses/Forbidden.yaml
+    "404":
+      $ref: ../../components/responses/NotFound.yaml
+    "405":
+      $ref: ../../components/responses/MethodNotAllowed.yaml
+    "408":
+      $ref: ../../components/responses/Timeout.yaml
+    "429":
+      $ref: ../../components/responses/TooManyRequests.yaml
+  deprecated: false
+  x-legacy-doc-urls:
+    - https://docs.apify.com/api/v2#/reference/actors/run-actor-synchronously-and-get-dataset-items/run-actor-synchronously-without-input-and-get-dataset-items
+    - https://docs.apify.com/api/v2#/reference/actors/run-actor-synchronously-without-input-and-get-dataset-items
+    - https://docs.apify.com/api/v2#tag/ActorsRun-Actor-synchronously-and-get-dataset-items/operation/act_runSyncGetDatasetItems_get

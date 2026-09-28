@@ -1,0 +1,107 @@
+---
+title: "Start your first Session with Playwright"
+sidebarTitle: "Playwright"
+mode: "wide"
+---
+
+<Steps>
+  <Step title="Get your API Key">
+    Go over the [Dashboard's Settings tab](https://www.browserbase.com/settings):
+
+    <Frame caption="Then copy your API Key directly from the input">
+      <img src="/images/quickstart/api-key.png" />
+    </Frame>
+
+    <Note>Update your `.env` by adding the `BROWSERBASE_API_KEY` entry or remember to prefix your bash command when running your code with `BROWSERBASE_API_KEY=xxx node my-script.js`.</Note>
+
+  </Step>
+  <Step title="Update your code or clone a template">
+    Running your existing code with Browserbase only requires a few line changes:
+
+    <Tabs>
+
+      <Tab title="TypeScript">
+
+      ```typescript
+      import { chromium } from "playwright-core";
+
+      (async () => {
+        const browser = await chromium.connectOverCDP(
+          `wss://connect.browserbase.com?apiKey=${process.env.BROWSERBASE_API_KEY}`
+        );
+
+        //Getting the default context to ensure the sessions are recorded.
+        const defaultContext = browser.contexts()[0];
+        const page = defaultContext.pages()[0];
+
+        await page.goto("https://browserbase.com/");
+        await page.close();
+        await browser.close();
+      })().catch((error) => console.error(error.message));
+      ```
+
+      <Card title={'Get started with a Playwright template'} href="https://github.com/browserbase/quickstart-playwright-js" icon={'github'}>
+        Clone this GitHub repo to get started with Playwright
+      </Card>
+
+      </Tab>
+
+      <Tab title="Python">
+      ```python Python
+      from playwright.sync_api import sync_playwright, Playwright
+
+      def run(playwright: Playwright):
+          chromium = playwright.chromium
+          browser = chromium.connect_over_cdp('wss://connect.browserbase.com?apiKey='+ os.environ["BROWSERBASE_API_KEY"])
+          context = browser.contexts[0]
+          page = context.pages[0]
+
+      with sync_playwright() as playwright:
+          run(playwright)
+      ```
+
+      <Card title={'Get started with a Playwright template'} href="https://github.com/browserbase/quickstart-playwright-python" icon={'github'}>
+        Clone this GitHub repo to get started with Playwright
+      </Card>
+
+      </Tab>
+
+    </Tabs>
+
+    <br />
+
+  </Step>
+  <Step title="Inspect the completed Session">
+    You can find all the recent sessions on the Dashboard's Overview, along with essential metrics:
+
+    <Frame>
+      <img src="/images/quickstart/dashboard.png" />
+    </Frame>
+
+    Select your Session to inspect it with the [Session Debugger](/features/sessions) (showcased in the [previous section](#run-your-first-session)).
+
+  </Step>
+</Steps>
+
+## Start building
+
+<CardGroup cols={2}>
+
+<Card
+  title="Sessions API"
+  icon="server"
+  iconType="light"
+  href="/under-the-hood"
+>
+  Get full control of the Browser's Sessions with the Sessions REST API.
+</Card>
+<Card
+  title="BrowserContext and Pages"
+  icon="book"
+  iconType="light"
+  href="/guides/browser-contexts-and-pages"
+>
+  See how Browserbase simplifies the management of contexts and pages
+</Card>
+
+</CardGroup>

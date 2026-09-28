@@ -1,0 +1,13 @@
+{
+  "fetched": "2026-09-28 via registry.npmjs.org/@browserbasehq/sdk",
+  "name": "@browserbasehq/sdk",
+  "dist-tags": {
+    "next": "1.4.3-next.0",
+    "alpha": "2.8.0-alpha.1",
+    "latest": "2.21.0"
+  },
+  "latest_published": "2026-09-24T23:28:50.475Z",
+  "bin": null,
+  "deprecated": null,
+  "description": "The official Node.js library for the Browserbase API"
+}

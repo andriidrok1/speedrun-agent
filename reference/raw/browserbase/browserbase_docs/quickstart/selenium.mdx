@@ -1,0 +1,165 @@
+---
+title: "Start your first Session with Selenium"
+sidebarTitle: "Selenium"
+mode: "wide"
+---
+
+<Steps>
+  <Step title="Get your API Key">
+    Go over the [Dashboard's Settings tab](https://www.browserbase.com/settings):
+
+    <Frame caption="Then copy your API Key directly from the input">
+      <img src="/images/quickstart/api-key.png" />
+    </Frame>
+
+    <Note>Update your `.env` by adding the `BROWSERBASE_API_KEY` entry or remember to prefix your bash command when running your code with `BROWSERBASE_API_KEY=xxx node my-script.js`.</Note>
+
+  </Step>
+  <Step title="Update your code or clone a template">
+    Running your existing code with Browserbase only requires a few line changes:
+
+  <Tabs>
+  <Tab title="TypeScript">
+    ```typescript
+    import http from "http";
+    import webdriver from "selenium-webdriver";
+    import chrome from "selenium-webdriver/chrome";
+
+    async function createSession() {
+      const response = await fetch(`https://www.browserbase.com/v1/sessions`, {
+        method: 'POST',
+        headers: {
+          "x-bb-api-key": process.env.BROWSERBASE_API_KEY,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ projectId: process.env.BROWSERBASE_PROJECT_ID })
+      });
+      return await response.json();
+    }
+
+
+    (async () => {
+      const session = await createSession();
+
+      const customHttpAgent = new http.Agent({});
+      (customHttpAgent as any).addRequest = (req: any, options: any) => {
+        // Session ID needs to be set here
+        req.setHeader("session-id", session.id);
+        req.setHeader("x-bb-api-key", process.env.BROWSERBASE_API_KEY);
+        (http.Agent.prototype as any).addRequest.call(customHttpAgent, req, options);
+      };
+
+      // We set a debuggerAddress so the server-side WebDriver can connect.
+      const options = new chrome.Options();
+      options.debuggerAddress("localhost:9223");
+
+      const driver = new webdriver.Builder()
+        .forBrowser("chrome")
+        .setChromeOptions(options)
+        .usingHttpAgent(customHttpAgent)
+        .usingServer(
+          `http://connect.browserbase.com/webdriver` // Selenium only supports HTTP
+        )
+        .build();
+
+      await driver.get("https://www.browserbase.com");
+
+      // Make sure to quit the driver so your session is ended!
+      await driver.quit();
+    })().catch((error) => console.error(error.message));
+    ```
+
+    <Card title={'Get started with a Selenium template'} href="https://github.com/browserbase/quickstart-selenium-js" icon={'github'}>
+      Clone this GitHub repo to get started with Selenium
+    </Card>
+
+  </Tab>
+  <Tab title="Python">
+
+    ```python
+    from selenium import webdriver
+    from selenium.webdriver.remote.remote_connection import RemoteConnection
+    from selenium.webdriver.common.desired_capabilities import DesiredCapabilities
+    import requests
+    import os
+
+    def create_session():
+        url = 'https://www.browserbase.com/v1/sessions'
+        headers = {'Content-Type': 'application/json', 'x-bb-api-key': os.environ["BROWSERBASE_API_KEY"]}
+        response = requests.post(url, json={ "projectId": os.environ["BROWSERBASE_PROJECT_ID"] }, headers=headers)
+        return response.json()['id']
+
+
+    class CustomRemoteConnection(RemoteConnection):
+        _session_id = None
+
+        def __init__(self, remote_server_addr: str, session_id: str):
+            super().__init__(remote_server_addr)
+            self._session_id = session_id
+
+        def get_remote_connection_headers(self, parsed_url, keep_alive=False):
+            headers = super().get_remote_connection_headers(parsed_url, keep_alive)
+            headers.update({'x-bb-api-key': os.environ["BROWSERBASE_API_KEY"]})
+            headers.update({'session-id': self._session_id})
+            return headers
+
+
+    def run():
+        session_id = create_session()
+        custom_conn = CustomRemoteConnection('http://connect.browserbase.com/webdriver', session_id)
+        options = webdriver.ChromeOptions()
+        options.debugger_address = "localhost:9223"
+        driver = webdriver.Remote(custom_conn, options=options)
+        driver.get("https://www.browserbase.com")
+        get_title = driver.title
+        print(get_title)
+        # Make sure to quit the driver so your session is ended!
+        driver.quit()
+
+    run()
+    ```
+
+    <Card title={'Get started with a Selenium template'} href="https://github.com/browserbase/quickstart-selenium-python" icon={'github'}>
+      Clone this GitHub repo to get started with Selenium
+    </Card>
+
+    </Tab>
+    </Tabs>
+
+    <br />
+
+  </Step>
+  <Step title="Inspect the completed Session">
+    You can find all the recent sessions on the Dashboard's Overview, along with essential metrics:
+
+    <Frame>
+      <img src="/images/quickstart/dashboard.png" />
+    </Frame>
+
+    Select your Session to inspect it with the [Session Debugger](/features/sessions) (showcased in the [previous section](#run-your-first-session)).
+
+  </Step>
+</Steps>
+
+## Start building
+
+<CardGroup cols={2}>
+
+<Card
+  title="Sessions API"
+  icon="server"
+  iconType="light"
+  href="/under-the-hood"
+>
+  Get full control of the Browser's Sessions with the Sessions REST API.
+</Card>
+<Card
+  title="BrowserContext and Pages"
+  icon="book"
+  iconType="light"
+  href="/guides/browser-contexts-and-pages"
+>
+  See how Browserbase simplifies the management of contexts and pages
+</Card>
+
+</CardGroup>
